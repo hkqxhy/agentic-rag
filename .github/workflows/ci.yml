@@ -28,7 +28,10 @@ jobs:
       - name: Reject local-only tracked files
         shell: bash
         run: |
-          forbidden="$(git ls-files | grep -E '(^|/)\.env($|\.)|\.log$|(^|/)\.paimon_index/|(^|/)Documents/|(^|/)QQ/|(^|/)reports/' || true)"
+          forbidden="$(git ls-files \
+            | grep -E '(^|/)\.env($|\.)|\.log$|(^|/)\.paimon_index/|(^|/)Documents/|(^|/)QQ/|(^|/)reports/' \
+            | grep -v -E '(^|/)\.env\.example$' \
+            || true)"
           if [ -n "$forbidden" ]; then
             printf 'Forbidden tracked files:\n%s\n' "$forbidden"
             exit 1
