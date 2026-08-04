@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package
+        run: python -m pip install .
+
+      - name: Reject local-only tracked files
+        shell: bash
+        run: |
+          forbidden="$(git ls-files | grep -E '(^|/)\.env($|\.)|\.log$|(^|/)\.paimon_index/|(^|/)Documents/|(^|/)QQ/|(^|/)reports/' || true)"
+          if [ -n "$forbidden" ]; then
+            printf 'Forbidden tracked files:\n%s\n' "$forbidden"
+            exit 1
+          fi
+
+      - name: Compile Python sources
+        run: python -m compileall -q PAIMON.py paimon_next tests
+
+      - name: Run baseline tests
+        run: python -X utf8 -m unittest discover -s tests -v

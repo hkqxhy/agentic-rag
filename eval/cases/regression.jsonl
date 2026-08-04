@@ -1,0 +1,14 @@
+{"id":"identity_password","question":"统一身份认证密码忘了怎么办？","expected_sources":["南哪QA.qa"],"expected_keywords":["密保","soft@nju.edu.cn","重置"],"category":"账号服务","tags":["core","qa"]}
+{"id":"campus_card_lost","question":"校园卡丢了怎么补办？","expected_sources":["南哪QA.qa"],"expected_keywords":["挂失","补办","20元"],"category":"校园生活","tags":["core","qa"]}
+{"id":"freshman_exam","question":"新生体检要注意什么？","expected_sources":["南哪QA.qa","新生入学体检"],"expected_keywords":["南京大学医院","校园卡","空腹"],"category":"新生入学","tags":["core","freshman"]}
+{"id":"student_number","question":"新生如何查询学号？","expected_sources":["新生学号查询方式","南哪QA.qa"],"expected_keywords":["迎新系统","考生号","身份证"],"category":"新生入学","tags":["freshman"]}
+{"id":"cs_program","question":"计算机科学与技术系培养方案有哪些内容？","expected_sources":["计算机科学与技术系培养方案.pdf"],"expected_keywords":["计算机科学","培养方案","课程"],"category":"培养方案","tags":["document","pdf"]}
+{"id":"network_router","question":"宿舍校园网和路由器怎么用？","expected_sources":["南大宿舍校园网与路由器使用指南.pdf"],"expected_keywords":["路由器","p.nju.edu.cn","无感知认证"],"category":"校园网","tags":["document","pdf"]}
+{"id":"clubs_overview","question":"南大有哪些社团可以参加？","expected_sources":["南大社团介绍"],"expected_keywords":["CAC动漫社","行远社","艺术表演类"],"category":"校园生活","tags":["overview","directory"]}
+{"id":"major_transfer","question":"有哪些辅修转专业分流方案资料？","expected_sources":["辅修&转专业&分流方案","分流&转专业&二次选拔"],"expected_keywords":["辅修","转专业","分流"],"category":"教务","tags":["overview","document"]}
+{"id":"scholarship","question":"奖助学金申请需要看哪些材料？","expected_sources":["奖助学金"],"expected_keywords":["助学金","申请","材料"],"category":"资助","tags":["overview","document"]}
+{"id":"english_placement","question":"新生英语分级考试是什么？","expected_sources":["英语分级考试","关于英语分级考试"],"expected_keywords":["英语","分级考试","新生"],"category":"新生入学","tags":["freshman"]}
+{"id":"freshman_checklist","question":"新生开学物品清单有什么？","expected_sources":["开学物品清单"],"expected_keywords":["物品","清单","新生"],"category":"新生入学","tags":["freshman","overview"]}
+{"id":"second_selection","question":"本科生二次选拔有哪些资料？","expected_sources":["二次选拔"],"expected_keywords":["二次选拔","本科生","方案"],"category":"教务","tags":["overview","document"]}
+{"id":"atmosphere_school","question":"请介绍南京大学大气科学学院。","expected_sources":["大气科学学院"],"expected_keywords":["大气科学","学院","专业"],"category":"院系介绍","tags":["document"]}
+{"id":"student_ticket","question":"学生证可以享受哪些交通优惠？","expected_sources":["学生票","学生证可享受"],"expected_keywords":["学生证","学生票","优惠"],"category":"交通","tags":["document"]}

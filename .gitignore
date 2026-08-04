@@ -1,0 +1,73 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.venv/
+venv/
+build/
+dist/
+
+# Node / Next.js (V2 web application)
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Runtime output
+*.log
+*.pid
+*.sqlite
+*.sqlite3
+.paimon_index/
+.paimon_eval_old_index/
+reports/
+*.faiss
+*.pkl
+
+# Local raw knowledge sources. Keep only manifests, schemas, and sanitized fixtures in Git.
+/Documents/
+/QQ/
+/data/
+/*.qa
+/knowledge/raw/
+/knowledge/normalized/
+/knowledge/artifacts/
+/knowledge/rejected/
+
+# Historical generated artifacts retained locally only
+/faiss_QA/
+/faiss_TEST/
+/legacy/prototype/new.txt
+/legacy/prototype/out.txt
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*~

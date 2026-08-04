@@ -1,0 +1,3 @@
+{"id":"identity_password","question":"统一身份认证密码忘了怎么办？","expected_sources":["南哪QA.qa"],"expected_keywords":["密保","soft@nju.edu.cn","重置"],"category":"账号服务","tags":["core","qa","smoke"]}
+{"id":"campus_card_lost","question":"校园卡丢了怎么补办？","expected_sources":["南哪QA.qa"],"expected_keywords":["挂失","补办","20元"],"category":"校园生活","tags":["core","qa","smoke"]}
+{"id":"clubs_overview","question":"南大有哪些社团可以参加？","expected_sources":["南大社团介绍"],"expected_keywords":["CAC动漫社","行远社","艺术表演类"],"category":"校园生活","tags":["overview","directory","smoke"]}
