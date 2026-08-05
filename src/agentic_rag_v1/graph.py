@@ -546,7 +546,7 @@ def load_or_build_graph(
     force: bool = False,
 ) -> KnowledgeGraph:
     fingerprint = graph_fingerprint(chunks)
-    graph_file = (index_dir or Path(".paimon_index")) / "graph.json"
+    graph_file = (index_dir or Path(".agentic_rag_v1_index")) / "graph.json"
     if use_cache and not force and graph_file.exists():
         cached = load_graph_cache(graph_file)
         if cached and cached.get("fingerprint") == fingerprint:

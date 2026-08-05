@@ -1,4 +1,4 @@
-# PAIMON 公有云部署与千问接入方案
+# Agentic RAG 公有云部署与千问接入方案
 
 > 更新日期：2026-08-04
 > 已确认前提：阿里云 ECS 个人免费试用 4 核 8 GB；控制台预计约 600 小时；约 100 名注册用户、峰值 10—20 人在线；模型使用阿里云百炼千问 API；不购买 GPU；首版使用普通应用账号；学校资料暂由管理员维护，保留自动同步接口。
@@ -128,24 +128,24 @@ Prometheus/Grafana 可以在压测和演示期间按需启动。日常在线只�
 
 1. 使用个人阿里云主账号完成实名认证；
 2. 开通百炼 Model Studio；
-3. 在 **华北 2（北京）** 创建独立的 PAIMON 业务空间；
+3. 在 **华北 2（北京）** 创建独立的 Agentic RAG 业务空间；
 4. 开通按量付费，设置每日/月度预算和异常消费告警；
 5. 创建 RAM 管理用户处理日常控制台配置，应用运行时不使用主账号 AccessKey；
 6. 创建只允许访问所需模型的 API Key；
 7. API Key 只通过服务端 Secret 或环境变量注入，不进入 Git、前端、镜像和日志。
 
-普通应用账号与阿里云账号是两套体系。最终用户只注册 PAIMON 的用户名/邮箱和密码，永远不能获得云账号凭证或百炼 API Key。
+普通应用账号与阿里云账号是两套体系。最终用户只注册 Agentic RAG 的用户名/邮箱和密码，永远不能获得云账号凭证或百炼 API Key。
 
 ### 6.2 Model Gateway 配置
 
 ```dotenv
-PAIMON_LLM_BASE_URL=https://YOUR_WORKSPACE_ID.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
-PAIMON_LLM_API_KEY=REPLACE_AT_DEPLOY_TIME
-PAIMON_LLM_SIMPLE_MODEL=qwen-plus
-PAIMON_LLM_COMPLEX_MODEL=qwen3.7-plus
-PAIMON_EMBEDDING_MODEL=text-embedding-v4
-PAIMON_EMBEDDING_DIMENSIONS=1024
-PAIMON_RERANK_MODEL=qwen3-rerank
+AGENTIC_RAG_LLM_BASE_URL=https://YOUR_WORKSPACE_ID.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
+AGENTIC_RAG_LLM_API_KEY=REPLACE_AT_DEPLOY_TIME
+AGENTIC_RAG_LLM_SIMPLE_MODEL=qwen-plus
+AGENTIC_RAG_LLM_COMPLEX_MODEL=qwen3.7-plus
+AGENTIC_RAG_EMBEDDING_MODEL=text-embedding-v4
+AGENTIC_RAG_EMBEDDING_DIMENSIONS=1024
+AGENTIC_RAG_RERANK_MODEL=qwen3-rerank
 ```
 
 仓库只提交 `.env.example`。Model Gateway 分别定义 `ChatClient`、`EmbeddingClient` 和 `RerankClient`：Chat 和普通 dense Embedding 可使用 OpenAI-compatible 客户端；dense+sparse 联合 Embedding 和 Rerank 通过百炼对应接口适配。业务代码不能直接绑定厂商 SDK。

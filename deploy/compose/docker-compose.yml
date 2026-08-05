@@ -1,0 +1,96 @@
+name: agentic-rag
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: agentic_rag
+      POSTGRES_USER: agentic_rag
+      POSTGRES_PASSWORD: agentic_rag
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentic_rag -d agentic_rag"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/api.Dockerfile
+    command: ["alembic", "upgrade", "head"]
+    environment: &backend-environment
+      AGENTIC_RAG_ENVIRONMENT: development
+      AGENTIC_RAG_DATABASE_URL: postgresql+asyncpg://agentic_rag:agentic_rag@postgres:5432/agentic_rag
+      AGENTIC_RAG_REDIS_URL: redis://redis:6379/0
+      AGENTIC_RAG_CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/api.Dockerfile
+    environment: *backend-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=2)",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/api.Dockerfile
+    command: ["python", "-m", "agentic_rag.worker"]
+    environment: *backend-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -68,7 +68,7 @@ class RAGConfig:
                 for path in self.source_paths
             ]
         if self.index_dir is None:
-            self.index_dir = self.root / ".paimon_index"
+            self.index_dir = self.root / ".agentic_rag_v1_index"
         else:
             self.index_dir = (
                 self.index_dir
@@ -78,22 +78,22 @@ class RAGConfig:
 
     @classmethod
     def from_env(cls, root: str | Path | None = None) -> "RAGConfig":
-        project_root = Path(root or os.getenv("PAIMON_ROOT", ".")).resolve()
+        project_root = Path(root or os.getenv("AGENTIC_RAG_ROOT", ".")).resolve()
         load_env_file(project_root / ".env.local")
-        source_value = os.getenv("PAIMON_SOURCE_PATHS", "")
+        source_value = os.getenv("AGENTIC_RAG_SOURCE_PATHS", "")
         source_paths = [Path(part) for part in _split_paths(source_value)]
 
         return cls(
             root=project_root,
             source_paths=source_paths,
-            index_dir=Path(os.getenv("PAIMON_INDEX_DIR", ".paimon_index")),
-            top_k=int(os.getenv("PAIMON_TOP_K", "5")),
-            candidate_k=int(os.getenv("PAIMON_CANDIDATE_K", "40")),
-            min_confidence=float(os.getenv("PAIMON_MIN_CONFIDENCE", "0.16")),
-            use_cache=os.getenv("PAIMON_USE_CACHE", "1") != "0",
-            use_graphrag=os.getenv("PAIMON_USE_GRAPHRAG", "1") != "0",
-            llm_base_url=os.getenv("PAIMON_LLM_BASE_URL", "").strip(),
-            llm_api_key=os.getenv("PAIMON_LLM_API_KEY", "EMPTY"),
-            llm_model=os.getenv("PAIMON_LLM_MODEL", "Qwen"),
-            llm_timeout=float(os.getenv("PAIMON_LLM_TIMEOUT", "30")),
+            index_dir=Path(os.getenv("AGENTIC_RAG_INDEX_DIR", ".agentic_rag_v1_index")),
+            top_k=int(os.getenv("AGENTIC_RAG_TOP_K", "5")),
+            candidate_k=int(os.getenv("AGENTIC_RAG_CANDIDATE_K", "40")),
+            min_confidence=float(os.getenv("AGENTIC_RAG_MIN_CONFIDENCE", "0.16")),
+            use_cache=os.getenv("AGENTIC_RAG_USE_CACHE", "1") != "0",
+            use_graphrag=os.getenv("AGENTIC_RAG_USE_GRAPHRAG", "1") != "0",
+            llm_base_url=os.getenv("AGENTIC_RAG_LLM_BASE_URL", "").strip(),
+            llm_api_key=os.getenv("AGENTIC_RAG_LLM_API_KEY", "EMPTY"),
+            llm_model=os.getenv("AGENTIC_RAG_LLM_MODEL", "Qwen"),
+            llm_timeout=float(os.getenv("AGENTIC_RAG_LLM_TIMEOUT", "30")),
         )

@@ -1,13 +1,13 @@
-# PAIMON 工程化重做方案 V1
+# Agentic RAG 工程化重做方案 V1
 
-> 状态：初版评审稿
+> 状态：方案已确认，Phase 1 实施中
 > 日期：2026-08-04
 > 范围：架构重做方案，不代表现有业务代码已经迁移
-> 核心目标：把 PAIMON 从“本地 RAG 演示”升级为可持续维护、可量化评估、可水平扩展、可真实服务南京大学新生的生产级智能助手。
+> 核心目标：把 Agentic RAG 从“本地 RAG 演示”升级为可持续维护、可量化评估、可水平扩展、可真实服务南京大学新生的生产级智能助手。
 
 ## 1. 执行摘要
 
-本次不建议继续围绕 `paimon_next/api.py` 和本地 JSON 索引做增量堆叠，而应采用“保留现有系统作为基线，新建 V2 主干，分阶段迁移”的方式重做。
+本次不建议继续围绕 `agentic_rag_v1/api.py` 和本地 JSON 索引做增量堆叠，而应采用“保留现有系统作为基线，新建 V2 主干，分阶段迁移”的方式重做。
 
 V2 的核心不是简单换一个 Agent 框架或向量数据库，而是同时重建六条能力链：
 
@@ -45,10 +45,10 @@ V2 的核心不是简单换一个 Agent 框架或向量数据库，而是同时�
 - `Documents/`、`QQ/`、`data/` 共包含约 468 个数据文件；
 - 主要文件类型为 333 个 TXT、117 个 PDF、15 个 QA、2 个 Markdown 和 1 个 DOCX；
 - 文件名中显式带 2010—2026 年或年级信息的资料至少 55 份；
-- `.paimon_index/index.json` 约 44.5 MB，`graph.json` 约 50.2 MB；
+- `.agentic_rag_v1_index/index.json` 约 44.5 MB，`graph.json` 约 50.2 MB；
 - 当前索引约 26,132 个知识块，其中约 21,858 个普通文档块、3,754 个 PDF 块、475 个 QA 块、45 个目录概览块；
 - 自动化评测只有 14 条 regression 和 3 条 smoke 样例；
-- `paimon_next/api.py` 超过 3,000 行，并内嵌多个版本的 HTML/CSS/JavaScript；
+- `agentic_rag_v1/api.py` 超过 3,000 行，并内嵌多个版本的 HTML/CSS/JavaScript；
 - 服务使用 `ThreadingHTTPServer`，会话历史保存在进程内存，无法可靠水平扩展。
 
 ### 2.3 根因
@@ -71,7 +71,7 @@ V2 的核心不是简单换一个 Agent 框架或向量数据库，而是同时�
 
 ### 3.1 产品定位
 
-PAIMON V2 是“有证据边界的南京大学新生事务助手”，重点覆盖报到、身份认证、校园卡、宿舍、医保、校园网、选课、专业分流、交通与校园生活。
+Agentic RAG V2 是“有证据边界的南京大学新生事务助手”，重点覆盖报到、身份认证、校园卡、宿舍、医保、校园网、选课、专业分流、交通与校园生活。
 
 它不是无限自主的通用 Agent，也不应在缺少学校资料时自由编造。创新必须服务于以下业务结果：
 
@@ -169,7 +169,7 @@ flowchart TB
 
 Agent 创新应体现为**自适应决策、可恢复状态、工具协议、证据闭环和评测闭环**，而不是创建多个角色互相聊天。
 
-LangGraph 当前正式支持持久化、流式输出、durable execution 和 human-in-the-loop，适合把 PAIMON 的查询计划、检索、纠错、生成和引用检查显式建模。生产环境使用 PostgreSQL/Redis checkpointer，不能继续用内存状态。
+LangGraph 当前正式支持持久化、流式输出、durable execution 和 human-in-the-loop，适合把 Agentic RAG 的查询计划、检索、纠错、生成和引用检查显式建模。生产环境使用 PostgreSQL/Redis checkpointer，不能继续用内存状态。
 
 暂不采用以下方案作为主干：
 
@@ -480,7 +480,7 @@ Ragas 可用于 faithfulness、context precision/recall、answer relevancy 等�
 
 每次技术升级至少对比：
 
-- 当前 PAIMON Next 基线；
+- 当前 Agentic RAG V1 基线；
 - BM25 only；
 - dense only；
 - dense + sparse；
@@ -509,7 +509,7 @@ Ragas 可用于 faithfulness、context precision/recall、answer relevancy 等�
 
 ### 10.1 页面布局
 
-采用用户熟悉的 ChatGPT 式交互范式，但保持 PAIMON/NJU 自身品牌：
+采用用户熟悉的 ChatGPT 式交互范式，但保持 agentic-rag/NJU 自身品牌：
 
 - 左侧可折叠侧栏：创建新对话、历史列表、搜索、重命名、删除；
 - 主区域空状态：欢迎语、能力说明和场景化示例；
@@ -550,12 +550,12 @@ Ragas 可用于 faithfulness、context precision/recall、answer relevancy 等�
 ## 11. 推荐代码仓库结构
 
 ```text
-PAIMON/
+agentic-rag/
 ├─ apps/
 │  ├─ api/                    # FastAPI 路由、中间件、依赖注入
 │  ├─ web/                    # Next.js 前端
 │  └─ worker/                 # 摄取、OCR、索引、离线评测任务
-├─ src/paimon/
+├─ src/agentic_rag/
 │  ├─ agents/                 # LangGraph state、nodes、edges、tools
 │  ├─ retrieval/              # query、hybrid、rerank、graph、evidence
 │  ├─ generation/             # model gateway、prompts、citation verifier

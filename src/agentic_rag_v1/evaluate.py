@@ -313,7 +313,7 @@ def run_experiment(
     old_config = RAGConfig(
         root=root,
         source_paths=[root / name for name in DEFAULT_SOURCE_NAMES[:3]],
-        index_dir=root / ".paimon_eval_old_index",
+        index_dir=root / ".agentic_rag_v1_eval_old_index",
         use_cache=True,
     )
     old_chunks = load_or_build_chunks(old_config)
@@ -589,7 +589,7 @@ def render_html_report(payload: dict[str, Any]) -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PAIMON RAG Evaluation</title>
+  <title>Agentic RAG RAG Evaluation</title>
   <style>
     body {{ font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: #f6f8fb; color: #172033; }}
     main {{ max-width: 1180px; margin: 0 auto; padding: 28px 18px 46px; }}
@@ -619,7 +619,7 @@ def render_html_report(payload: dict[str, Any]) -> str:
 </head>
 <body>
 <main>
-  <h1>PAIMON RAG 对比实验报告</h1>
+  <h1>Agentic RAG RAG 对比实验报告</h1>
   <p class="muted">生成时间：{escape(payload["created_at"])}；套件：{escape(payload.get("suite", ""))}；测试集：{payload["case_count"]} 题；Top-K：{payload["top_k"]}；关注变体：{escape(payload.get("focus_variant", ""))}；旧知识块：{payload["knowledge_base"]["old_chunks"]}；新知识块：{payload["knowledge_base"]["full_chunks"]}</p>
   <p class="muted">Case 来源：{escape(payload.get("case_source", ""))}</p>
   {render_gate_box(gate)}
@@ -796,7 +796,7 @@ def print_run_summary(payload: dict[str, Any], gate: dict[str, Any] | None = Non
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Evaluate PAIMON RAG retrieval quality.")
+    parser = argparse.ArgumentParser(description="Evaluate Agentic RAG RAG retrieval quality.")
     parser.add_argument("--root", default=str(Path.cwd()))
     parser.add_argument("--output-dir", default="reports")
     parser.add_argument("--suite", default=DEFAULT_SUITE, help="Case suite under eval/cases/<suite>.jsonl.")

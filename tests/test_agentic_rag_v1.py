@@ -6,22 +6,22 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from paimon_next.advanced import AdvancedRetriever
-from paimon_next.config import RAGConfig
-from paimon_next.evaluate import (
+from agentic_rag_v1.advanced import AdvancedRetriever
+from agentic_rag_v1.config import RAGConfig
+from agentic_rag_v1.evaluate import (
     VariantResult,
     evaluate_gate,
     load_eval_cases,
     summarize_failures,
 )
-from paimon_next.graph import GraphRAGRetriever
-from paimon_next.loaders import load_directory_overviews, load_sources
-from paimon_next.retrieval import Retriever
-from paimon_next.schema import KnowledgeChunk
-from paimon_next.service import NewStudentAssistant
+from agentic_rag_v1.graph import GraphRAGRetriever
+from agentic_rag_v1.loaders import load_directory_overviews, load_sources
+from agentic_rag_v1.retrieval import Retriever
+from agentic_rag_v1.schema import KnowledgeChunk
+from agentic_rag_v1.service import NewStudentAssistant
 
 
-class PAIMONNextTests(unittest.TestCase):
+class AgenticRAGV1Tests(unittest.TestCase):
     def test_config_uses_sanitized_fixture_when_raw_sources_are_absent(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -33,7 +33,7 @@ class PAIMONNextTests(unittest.TestCase):
         self.assertEqual(config.source_paths, [fixture_dir])
 
     def test_config_loads_env_local(self) -> None:
-        keys = ["PAIMON_LLM_BASE_URL", "PAIMON_LLM_MODEL", "PAIMON_LLM_API_KEY"]
+        keys = ["AGENTIC_RAG_LLM_BASE_URL", "AGENTIC_RAG_LLM_MODEL", "AGENTIC_RAG_LLM_API_KEY"]
         previous = {key: os.environ.pop(key, None) for key in keys}
         try:
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -41,9 +41,9 @@ class PAIMONNextTests(unittest.TestCase):
                 (root / ".env.local").write_text(
                     "\n".join(
                         [
-                            "PAIMON_LLM_BASE_URL=https://example.test/v1",
-                            "PAIMON_LLM_MODEL=qwen-plus",
-                            "PAIMON_LLM_API_KEY=test-key",
+                            "AGENTIC_RAG_LLM_BASE_URL=https://example.test/v1",
+                            "AGENTIC_RAG_LLM_MODEL=qwen-plus",
+                            "AGENTIC_RAG_LLM_API_KEY=test-key",
                         ]
                     ),
                     encoding="utf-8",
@@ -220,7 +220,7 @@ class PAIMONNextTests(unittest.TestCase):
             config = RAGConfig(
                 root=root,
                 source_paths=[qa_file],
-                index_dir=root / ".paimon_index",
+                index_dir=root / ".agentic_rag_v1_index",
                 use_cache=False,
                 min_confidence=0.05,
             )

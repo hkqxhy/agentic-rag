@@ -23,6 +23,7 @@ dist/
 
 # Node / Next.js (V2 web application)
 node_modules/
+.pnpm-store/
 .next/
 out/
 coverage/
@@ -44,8 +45,8 @@ Desktop.ini
 *.pid
 *.sqlite
 *.sqlite3
-.paimon_index/
-.paimon_eval_old_index/
+.agentic_rag_v1_index/
+.agentic_rag_v1_eval_old_index/
 reports/
 *.faiss
 *.pkl

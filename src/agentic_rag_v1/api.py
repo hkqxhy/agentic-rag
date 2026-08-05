@@ -12,10 +12,10 @@ from .config import RAGConfig
 from .service import NewStudentAssistant
 
 
-class PAIMONRequestHandler(BaseHTTPRequestHandler):
+class AgenticRAGV1RequestHandler(BaseHTTPRequestHandler):
     assistant: NewStudentAssistant
 
-    server_version = "PAIMONNext/1.0"
+    server_version = "AgenticRAGV1/1.0"
 
     def do_OPTIONS(self) -> None:
         self._send_json({"ok": True})
@@ -164,7 +164,7 @@ class PAIMONRequestHandler(BaseHTTPRequestHandler):
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PAIMON Next</title>
+  <title>Agentic RAG V1</title>
   <style>
     :root {{ color-scheme: light; }}
     * {{ box-sizing: border-box; }}
@@ -197,7 +197,7 @@ class PAIMONRequestHandler(BaseHTTPRequestHandler):
   <main>
     <header>
       <div>
-        <h1>PAIMON Next 新生问答助手</h1>
+        <h1>Agentic RAG V1 新生问答助手</h1>
         <p>输入新生办事问题，系统会检索本地资料并通过流式接口生成回答。</p>
       </div>
       <div class="status">
@@ -370,7 +370,7 @@ def _render_modern_home_page(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PAIMON 新生问答助手</title>
+  <title>Agentic RAG 新生问答助手</title>
   <style>
     :root {
       color-scheme: light;
@@ -746,7 +746,7 @@ def _render_modern_home_page(
       <div class="brand">
         <div class="logo">P</div>
         <div>
-          <h1>PAIMON</h1>
+          <h1>Agentic RAG</h1>
           <p>南京大学新生问答助手</p>
         </div>
       </div>
@@ -780,7 +780,7 @@ def _render_modern_home_page(
 
       <form class="composer" id="composer">
         <div class="composer-box">
-          <textarea id="question" rows="1" placeholder="向 PAIMON 提问，例如：统一身份认证密码忘了怎么办？"></textarea>
+          <textarea id="question" rows="1" placeholder="向 Agentic RAG 提问，例如：统一身份认证密码忘了怎么办？"></textarea>
           <button class="send" id="sendBtn" type="submit">发送</button>
         </div>
         <div class="composer-hint">
@@ -797,7 +797,7 @@ def _render_modern_home_page(
       </div>
       <div class="meta" id="meta"></div>
       <div class="sources" id="sources">
-        <div class="empty-panel">还没有引用来源。发送一个问题后，PAIMON 会在这里列出检索到的证据。</div>
+        <div class="empty-panel">还没有引用来源。发送一个问题后，Agentic RAG 会在这里列出检索到的证据。</div>
       </div>
     </aside>
   </div>
@@ -814,7 +814,7 @@ def _render_modern_home_page(
     const sessionId = "web-" + Math.random().toString(16).slice(2);
     let isSending = false;
 
-    const greeting = "你好，我是 PAIMON。你可以问我报到、校园卡、宿舍、医保、选课、社团、校园网等新生问题。我会尽量基于知识库回答，并给出引用来源。";
+    const greeting = "你好，我是 Agentic RAG。你可以问我报到、校园卡、宿舍、医保、选课、社团、校园网等新生问题。我会尽量基于知识库回答，并给出引用来源。";
 
     resetConversation();
 
@@ -1008,7 +1008,7 @@ def _render_modern_home_page(
       messagesEl.innerHTML = "";
       appendMessage("assistant", greeting);
       metaEl.innerHTML = "";
-      sourcesEl.innerHTML = '<div class="empty-panel">还没有引用来源。发送一个问题后，PAIMON 会在这里列出检索到的证据。</div>';
+      sourcesEl.innerHTML = '<div class="empty-panel">还没有引用来源。发送一个问题后，Agentic RAG 会在这里列出检索到的证据。</div>';
       stateEl.textContent = "准备就绪";
     }
 
@@ -1904,7 +1904,7 @@ def _render_taste_home_page(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PAIMON 新生问答助手</title>
+  <title>Agentic RAG 新生问答助手</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -2660,7 +2660,7 @@ def _render_taste_home_page(
 </head>
 <body>
   <nav class="nav" aria-label="主导航">
-    <div class="brand"><span class="brand-mark">P</span><span>PAIMON</span></div>
+    <div class="brand"><span class="brand-mark">P</span><span>Agentic RAG</span></div>
     <div class="nav-links">
       <a href="#knowledge">知识结构</a>
       <a href="#ask">开始提问</a>
@@ -2675,7 +2675,7 @@ def _render_taste_home_page(
       <div class="hero-copy">
         <div class="eyebrow">南京大学新生问答 RAG</div>
         <h1>把入学问题<span class="inline-image" aria-hidden="true"></span>变成可引用的答案。</h1>
-        <p>PAIMON 读取本地知识库、群聊问答和文档资料，用流式输出回答报到、校园卡、宿舍、医保、选课、社团和校园网等高频问题，并把证据来源放在同一屏里。</p>
+        <p>Agentic RAG 读取本地知识库、群聊问答和文档资料，用流式输出回答报到、校园卡、宿舍、医保、选课、社团和校园网等高频问题，并把证据来源放在同一屏里。</p>
         <div class="hero-actions">
           <a class="button button-primary" href="#ask">立即提问</a>
           <a class="button button-secondary" href="#knowledge">查看知识结构</a>
@@ -2744,9 +2744,9 @@ def _render_taste_home_page(
         <p>Enter 发送，Shift + Enter 换行。生成时可停止；新会话会同时清空服务端会话与本地界面。</p>
       </div>
       <div class="ask-grid">
-        <section class="chat-surface" aria-label="PAIMON 问答">
+        <section class="chat-surface" aria-label="Agentic RAG 问答">
           <div class="chat-toolbar">
-            <strong>PAIMON 对话</strong>
+            <strong>Agentic RAG 对话</strong>
             <span class="state" id="state" aria-live="polite">准备就绪</span>
           </div>
           <section class="messages" id="messages" aria-live="polite"></section>
@@ -2784,7 +2784,7 @@ def _render_taste_home_page(
       <div class="desire">
         <div class="sticky-copy">
           <h2>答案要好看，也要经得起追问。</h2>
-          <p class="reveal-copy" id="revealCopy">PAIMON 会把检索诊断、来源标题、置信度和图谱命中放在可见区域。用户不需要猜答案是否来自资料库，也不需要在滚动里找证据。</p>
+          <p class="reveal-copy" id="revealCopy">Agentic RAG 会把检索诊断、来源标题、置信度和图谱命中放在可见区域。用户不需要猜答案是否来自资料库，也不需要在滚动里找证据。</p>
         </div>
         <div class="media-stack">
           <div class="media-panel" style="background-image:url('https://picsum.photos/seed/nju-archive-paper/1000/760')"></div>
@@ -2818,13 +2818,13 @@ def _render_taste_home_page(
     <section class="section">
       <div class="footer-cta">
         <div>
-          <h2>把下一条新生问题交给 PAIMON。</h2>
+          <h2>把下一条新生问题交给 Agentic RAG。</h2>
           <p>页面已经连接当前本地服务。点击按钮会回到输入区并聚焦，继续使用流式问答。</p>
         </div>
         <a class="button button-primary" href="#ask" id="footerAsk">开始</a>
       </div>
       <div class="footer-line">
-        <span>PAIMON Next</span>
+        <span>Agentic RAG V1</span>
         <span>本地知识库优先，关键信息仍建议以学校最新官方通知为准。</span>
       </div>
     </section>
@@ -2846,7 +2846,7 @@ def _render_taste_home_page(
     let isSending = false;
     let abortController = null;
 
-    const greeting = "你好，我是 PAIMON。你可以问我报到、校园卡、宿舍、医保、选课、社团、校园网等新生问题。我会尽量基于知识库回答，并给出引用来源。";
+    const greeting = "你好，我是 Agentic RAG。你可以问我报到、校园卡、宿舍、医保、选课、社团、校园网等新生问题。我会尽量基于知识库回答，并给出引用来源。";
 
     resetConversation();
     initMotion();
@@ -3068,7 +3068,7 @@ def _render_taste_home_page(
       messagesEl.innerHTML = "";
       appendMessage("assistant", greeting);
       metaEl.innerHTML = '<span class="tag">等待提问</span>';
-      sourcesEl.innerHTML = '<div class="empty-panel">还没有引用来源。发送问题后，PAIMON 会在这里列出检索到的证据。</div>';
+      sourcesEl.innerHTML = '<div class="empty-panel">还没有引用来源。发送问题后，Agentic RAG 会在这里列出检索到的证据。</div>';
       stateEl.textContent = "准备就绪";
     }
 
@@ -3185,23 +3185,23 @@ def run_server(
     config = RAGConfig.from_env(root or Path.cwd())
     assistant = NewStudentAssistant(config)
 
-    class Handler(PAIMONRequestHandler):
+    class Handler(AgenticRAGV1RequestHandler):
         pass
 
     Handler.assistant = assistant
     server = ThreadingHTTPServer((host, port), Handler)
-    print(f"PAIMON Next is running at http://{host}:{port}")
+    print(f"Agentic RAG V1 is running at http://{host}:{port}")
     print(f"Loaded {len(assistant.chunks)} knowledge chunks. LLM enabled: {assistant.llm.enabled}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nShutting down PAIMON Next.")
+        print("\nShutting down Agentic RAG V1.")
     finally:
         server.server_close()
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the PAIMON Next HTTP API.")
+    parser = argparse.ArgumentParser(description="Run the Agentic RAG V1 HTTP API.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", default=8002, type=int)
     parser.add_argument("--root", default=str(Path.cwd()))

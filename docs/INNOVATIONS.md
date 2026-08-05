@@ -1,8 +1,8 @@
-# PAIMON Next 创新点与工程落地说明
+# Agentic RAG V1 创新点与工程落地说明
 
 ## 场景聚焦
 
-新版 PAIMON 聚焦“新生问答”这一垂直场景，不再把系统定位成泛用聊天机器人。新生问题通常具有三个特点：
+新版 Agentic RAG 聚焦“新生问答”这一垂直场景，不再把系统定位成泛用聊天机器人。新生问题通常具有三个特点：
 
 1. 高流程性：报到、身份认证、校园卡、医保、选课、体检等问题需要步骤化回答。
 2. 高时效风险：时间、费用、入口链接和年级安排容易过期。
@@ -52,13 +52,13 @@
 
 ### 6. 可选生成增强
 
-配置 `PAIMON_LLM_BASE_URL` 后，系统会调用 OpenAI-compatible 本地服务进行生成式 RAG。未配置或服务异常时自动降级，不影响基本问答能力。
+配置 `AGENTIC_RAG_LLM_BASE_URL` 后，系统会调用 OpenAI-compatible 本地服务进行生成式 RAG。未配置或服务异常时自动降级，不影响基本问答能力。
 
 ## 工程落地考量
 
-- 保留旧入口：`PAIMON().rag()` 和 `/RAG/chat` 仍可用。
+- 保留旧入口：`AgenticRAGV1().rag()` 和 `/RAG/chat` 仍可用。
 - 标准库 HTTP API：减少部署环境依赖。
-- 本地缓存索引：启动时自动复用 `.paimon_index/index.json`。
+- 本地缓存索引：启动时自动复用 `.agentic_rag_v1_index/index.json`。
 - 可测试：`tests/` 覆盖解析、检索和无 LLM 回答。
 - 可扩展：后续可以把 dense embedding、cross-encoder reranker、FastAPI、权限控制和管理后台接入现有模块边界。
 

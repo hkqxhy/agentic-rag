@@ -5,14 +5,14 @@ import json
 import logging
 from langchain_core.documents import Document
 
-class PAIMON:
+class AgenticRAGV1:
     # model = "qwen1.5-14b-chat"
     model = "qwen-turbo"
     tools = [
         {
             "type": "function",
             "function": {
-                "name": "PAIMON",
+                "name": "agentic_rag",
                 "description": "Get any information you need to aswer the user's question.",
                 "parameters": {
                     "type": "object",
@@ -42,7 +42,7 @@ class PAIMON:
             if "tool_calls" not in call:
                 return None
             call = call["tool_calls"][0]
-            if call["function"]["name"] != "PAIMON":
+            if call["function"]["name"] != "agentic_rag":
                 return None
             if "arguments" not in call["function"]:
                 return None
@@ -93,7 +93,7 @@ class PAIMON:
             documents = [Document(page_content="暂无资料。")]
         self.messages.append({
             "content": "\n".join([i.page_content for i in documents]),
-            "name": "PAIMON",
+            "name": "agentic_rag",
             "role": "tool"
         })
         response = dashscope.Generation.call(
@@ -113,7 +113,7 @@ class PAIMON:
             return ""
 
 if __name__ == '__main__':
-    a = PAIMON()
+    a = AgenticRAGV1()
     # print(a.chat("介绍一下南京大学"))
     while True:
         message = input(">> ")

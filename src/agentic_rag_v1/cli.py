@@ -20,7 +20,7 @@ def _configure_stdio() -> None:
 
 def main() -> None:
     _configure_stdio()
-    parser = argparse.ArgumentParser(description="PAIMON Next new-student RAG assistant.")
+    parser = argparse.ArgumentParser(description="Agentic RAG V1 new-student RAG assistant.")
     parser.add_argument("question", nargs="*", help="Question to ask. Omit for interactive mode.")
     parser.add_argument("--root", default=str(Path.cwd()), help="Project root.")
     parser.add_argument("--json", action="store_true", help="Print raw JSON.")
@@ -51,7 +51,7 @@ def main() -> None:
         _ask_once(assistant, question, args.json, args.top_k)
         return
 
-    print("PAIMON Next interactive mode. Type /exit to quit, /clear to clear history.")
+    print("Agentic RAG V1 interactive mode. Type /exit to quit, /clear to clear history.")
     while True:
         try:
             question = input("> ").strip()

@@ -1,4 +1,4 @@
-# PAIMON Advanced RAG 升级说明
+# Agentic RAG Advanced RAG 升级说明
 
 本次升级把项目从“基础检索 + 生成”的 RAG，推进到更适合新生问答场景的证据驱动型 RAG。核心目标不是堆模型，而是在校园垂直场景里让系统更会找、更敢说不知道、更容易解释为什么这么答。
 
@@ -6,7 +6,7 @@
 
 ### 1. 新生场景 Query Planner
 
-新增 `paimon_next/advanced.py`，会先判断问题意图，再生成多个查询变体：
+新增 `agentic_rag_v1/advanced.py`，会先判断问题意图，再生成多个查询变体：
 
 - 原始问题
 - 意图扩展词，如校园卡、医保、选课、转专业、社团、校园网
@@ -76,7 +76,7 @@
 
 ## 竞争力定位
 
-PAIMON 的差异化不应是“又一个通用聊天 RAG”，而是“面向新生真实办事的校园证据助手”：
+Agentic RAG 的差异化不应是“又一个通用聊天 RAG”，而是“面向新生真实办事的校园证据助手”：
 
 1. 能处理校园知识的多源异构性：正式 PDF、指南、目录、QA、群聊沉淀。
 2. 能区分“能答”和“该核验”：对年份、费用、时间、系统入口保持保守。
@@ -87,7 +87,7 @@ PAIMON 的差异化不应是“又一个通用聊天 RAG”，而是“面向新
 ## 如何运行
 
 ```bash
-python PAIMON.py --host 127.0.0.1 --port 8002
+python agentic_rag_v1_server.py --host 127.0.0.1 --port 8002
 ```
 
 打开：
@@ -117,7 +117,7 @@ curl -N -X POST http://127.0.0.1:8002/ask/stream ^
 评测脚本已加入 `full_kb_advanced` 对照组：
 
 ```bash
-python -X utf8 -m paimon_next.evaluate --output-dir reports --top-k 5
+python -X utf8 -m agentic_rag_v1.evaluate --output-dir reports --top-k 5
 ```
 
 报告会比较：

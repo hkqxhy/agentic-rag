@@ -1,6 +1,6 @@
 # 贡献指南
 
-PAIMON 采用“V1 基线可复现、V2 分阶段迁移”的方式开发。每个改动都应能说明它改善了哪项业务质量、工程可靠性或交付能力。
+Agentic RAG 采用“V1 基线可复现、V2 分阶段迁移”的方式开发。每个改动都应能说明它改善了哪项业务质量、工程可靠性或交付能力。
 
 ## 开发流程
 
@@ -16,7 +16,7 @@ PAIMON 采用“V1 基线可复现、V2 分阶段迁移”的方式开发。每�
 ```bash
 python -m pip install -e ".[dev]"
 python -X utf8 -m unittest discover -s tests -v
-python -m compileall -q PAIMON.py paimon_next tests
+python -m compileall -q agentic_rag_v1_server.py agentic_rag_v1 tests
 ```
 
 Ruff 和 mypy 配置已经写入 `pyproject.toml`。在 V2 迁移过程中逐模块收紧门禁，不为通过检查而大范围改写不相关的 V1 基线。

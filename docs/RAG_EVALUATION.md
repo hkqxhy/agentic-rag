@@ -1,6 +1,6 @@
-# PAIMON RAG 效果量化实验设计
+# Agentic RAG RAG 效果量化实验设计
 
-本文档说明如何量化 PAIMON Next 的 RAG 效果，并生成可视化报告。
+本文档说明如何量化 Agentic RAG V1 的 RAG 效果，并生成可视化报告。
 
 ## 实验目标
 
@@ -61,7 +61,7 @@
 ## 运行方式
 
 ```bash
-python -X utf8 -m paimon_next.evaluate --suite regression --output-dir reports --top-k 5
+python -X utf8 -m agentic_rag_v1.evaluate --suite regression --output-dir reports --top-k 5
 ```
 
 输出：
@@ -81,9 +81,9 @@ python -X utf8 -m paimon_next.evaluate --suite regression --output-dir reports -
 常用命令：
 
 ```bash
-python -X utf8 -m paimon_next.evaluate --suite smoke --variants full_kb_bm25 --gate-variant full_kb_bm25 --min-top3 0.3 --min-keyword-coverage 0.5
-python -X utf8 -m paimon_next.evaluate --suite regression --gate-variant full_kb_graphrag --min-top3 1.0 --min-keyword-coverage 0.95 --max-avg-latency-ms 9000
-python -X utf8 -m paimon_next.evaluate --suite regression --baseline reports/rag_eval_20260605-123117.json --fail-on-regression
+python -X utf8 -m agentic_rag_v1.evaluate --suite smoke --variants full_kb_bm25 --gate-variant full_kb_bm25 --min-top3 0.3 --min-keyword-coverage 0.5
+python -X utf8 -m agentic_rag_v1.evaluate --suite regression --gate-variant full_kb_graphrag --min-top3 1.0 --min-keyword-coverage 0.95 --max-avg-latency-ms 9000
+python -X utf8 -m agentic_rag_v1.evaluate --suite regression --baseline reports/rag_eval_20260605-123117.json --fail-on-regression
 ```
 
 门禁失败时命令会非 0 退出，并在控制台与 HTML 报告中列出关注变体的失败样例、遗漏关键词和 Top 来源。

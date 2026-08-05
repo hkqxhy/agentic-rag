@@ -1,4 +1,4 @@
-"""PAIMON Next: a grounded RAG assistant for new-student Q&A."""
+"""Agentic RAG V1: a grounded RAG assistant for new-student Q&A."""
 
 from .config import RAGConfig
 from .advanced import AdvancedRetriever

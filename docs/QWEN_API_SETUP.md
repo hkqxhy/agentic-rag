@@ -1,6 +1,6 @@
-# PAIMON Next 接入通义千问接口文档
+# Agentic RAG V1 接入通义千问接口文档
 
-本文档用于把 PAIMON Next 连接到阿里云百炼/通义千问。你只需要补全 API Key，就可以让项目从“抽取式回答”升级为“千问生成式 RAG 回答”。
+本文档用于把 Agentic RAG V1 连接到阿里云百炼/通义千问。你只需要补全 API Key，就可以让项目从“抽取式回答”升级为“千问生成式 RAG 回答”。
 
 ## 1. 推荐配置
 
@@ -28,26 +28,26 @@ API_KEY: 你的阿里云百炼 API Key
 1. 登录阿里云百炼控制台。
 2. 开通模型服务。
 3. 创建 API Key。
-4. 复制 API Key，后续填入 `PAIMON_LLM_API_KEY`。
+4. 复制 API Key，后续填入 `AGENTIC_RAG_LLM_API_KEY`。
 
 注意：不要把真实 API Key 提交到 Git、论文附件、公开截图或聊天记录。
 
-## 3. PAIMON Next 一键配置
+## 3. Agentic RAG V1 一键配置
 
 ### 推荐：写入 `.env.local`
 
 项目启动时会自动读取根目录下的 `.env.local`。文件格式如下：
 
 ```text
-PAIMON_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-PAIMON_LLM_MODEL=qwen-plus
-PAIMON_LLM_API_KEY=你的阿里云百炼 API Key
+AGENTIC_RAG_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+AGENTIC_RAG_LLM_MODEL=qwen-plus
+AGENTIC_RAG_LLM_API_KEY=你的阿里云百炼 API Key
 ```
 
 配置好后直接启动：
 
 ```bash
-python PAIMON.py --host 127.0.0.1 --port 8002
+python agentic_rag_v1_server.py --host 127.0.0.1 --port 8002
 ```
 
 `.env.local` 已加入 `.gitignore`，不要把真实 API Key 提交到公开仓库。
@@ -59,33 +59,33 @@ python PAIMON.py --host 127.0.0.1 --port 8002
 把下面的 `sk-xxxx` 替换成你的真实 API Key：
 
 ```powershell
-$env:PAIMON_LLM_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-$env:PAIMON_LLM_MODEL = "qwen-plus"
-$env:PAIMON_LLM_API_KEY = "sk-xxxx"
+$env:AGENTIC_RAG_LLM_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+$env:AGENTIC_RAG_LLM_MODEL = "qwen-plus"
+$env:AGENTIC_RAG_LLM_API_KEY = "sk-xxxx"
 
-python PAIMON.py --host 127.0.0.1 --port 8002
+python agentic_rag_v1_server.py --host 127.0.0.1 --port 8002
 ```
 
 ### Linux / macOS
 
 ```bash
-export PAIMON_LLM_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
-export PAIMON_LLM_MODEL="qwen-plus"
-export PAIMON_LLM_API_KEY="sk-xxxx"
+export AGENTIC_RAG_LLM_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
+export AGENTIC_RAG_LLM_MODEL="qwen-plus"
+export AGENTIC_RAG_LLM_API_KEY="sk-xxxx"
 
-python PAIMON.py --host 127.0.0.1 --port 8002
+python agentic_rag_v1_server.py --host 127.0.0.1 --port 8002
 ```
 
 启动后看到类似输出即可：
 
 ```text
-PAIMON Next is running at http://127.0.0.1:8002
+Agentic RAG V1 is running at http://127.0.0.1:8002
 Loaded xxx knowledge chunks. LLM enabled: True
 ```
 
-## 4. 调用 PAIMON 问答接口
+## 4. 调用 Agentic RAG 问答接口
 
-PAIMON Next 会先检索本地新生问答资料，再把资料交给千问生成最终答案。
+Agentic RAG V1 会先检索本地新生问答资料，再把资料交给千问生成最终答案。
 
 ### 推荐接口
 
@@ -147,7 +147,7 @@ Content-Type: application/json
 
 ## 5. 直接测试千问接口
 
-如果 PAIMON 启动后仍显示 `LLM enabled: False`，可以先单独测试千问接口。
+如果 Agentic RAG 启动后仍显示 `LLM enabled: False`，可以先单独测试千问接口。
 
 ### HTTP 接口信息
 
@@ -204,7 +204,7 @@ Invoke-RestMethod `
 
 ## 6. 推荐生成参数
 
-PAIMON Next 当前默认使用比较稳的生成参数：
+Agentic RAG V1 当前默认使用比较稳的生成参数：
 
 | 参数 | 推荐值 | 说明 |
 | --- | --- | --- |
@@ -218,11 +218,11 @@ PAIMON Next 当前默认使用比较稳的生成参数：
 
 ### 启动后显示 `LLM enabled: False`
 
-说明没有读取到 `PAIMON_LLM_BASE_URL`。请确认：
+说明没有读取到 `AGENTIC_RAG_LLM_BASE_URL`。请确认：
 
 ```powershell
-echo $env:PAIMON_LLM_BASE_URL
-echo $env:PAIMON_LLM_MODEL
+echo $env:AGENTIC_RAG_LLM_BASE_URL
+echo $env:AGENTIC_RAG_LLM_MODEL
 ```
 
 ### 返回 401 / Unauthorized
@@ -253,7 +253,7 @@ qwen3.6-flash
 
 ### 答案没有引用来源
 
-PAIMON Next 的提示词会要求模型基于检索资料回答并标注 `[S1]` 等引用。如果模型没有按要求输出，系统会在答案后补充依据编号。建议不要把 `temperature` 调得太高。
+Agentic RAG V1 的提示词会要求模型基于检索资料回答并标注 `[S1]` 等引用。如果模型没有按要求输出，系统会在答案后补充依据编号。建议不要把 `temperature` 调得太高。
 
 ## 8. 生产部署建议
 
@@ -261,7 +261,7 @@ PAIMON Next 的提示词会要求模型基于检索资料回答并标注 `[S1]` 
 
 ```text
 前端 / QQ 机器人 / 微信机器人
-  -> PAIMON Next API
+  -> Agentic RAG V1 API
       -> 阿里云百炼千问 API
 ```
 

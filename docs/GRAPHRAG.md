@@ -1,4 +1,4 @@
-# PAIMON GraphRAG 说明
+# Agentic RAG GraphRAG 说明
 
 当前知识库已经加入本地 GraphRAG 层。它不是替换原来的 Advanced RAG，而是在原有检索之上增加“实体/主题图谱 + 社区摘要 + 图扩展召回”。
 
@@ -14,7 +14,7 @@ GraphRAG 会从现有 `KnowledgeChunk` 中抽取：
 生成的图谱缓存为：
 
 ```text
-.paimon_index/graph.json
+.agentic_rag_v1_index/graph.json
 ```
 
 ## 问答链路
@@ -83,20 +83,20 @@ GraphRAG 会从现有 `KnowledgeChunk` 中抽取：
 默认启用：
 
 ```bash
-python PAIMON.py --host 127.0.0.1 --port 8002
+python agentic_rag_v1_server.py --host 127.0.0.1 --port 8002
 ```
 
 重建知识库和图谱：
 
 ```bash
-python -m paimon_next.cli --reindex "南大有哪些社团可以参加？"
+python -m agentic_rag_v1.cli --reindex "南大有哪些社团可以参加？"
 ```
 
 临时关闭 GraphRAG，回退到 Advanced RAG：
 
 ```bash
-set PAIMON_USE_GRAPHRAG=0
-python PAIMON.py --host 127.0.0.1 --port 8002
+set AGENTIC_RAG_USE_GRAPHRAG=0
+python agentic_rag_v1_server.py --host 127.0.0.1 --port 8002
 ```
 
 ## 工程取舍

@@ -4,9 +4,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from paimon_next.api import main as api_main
-from paimon_next.config import RAGConfig
-from paimon_next.service import NewStudentAssistant
+from agentic_rag_v1.api import main as api_main
+from agentic_rag_v1.config import RAGConfig
+from agentic_rag_v1.service import NewStudentAssistant
 
 
 @dataclass(slots=True)
@@ -15,10 +15,10 @@ class Document:
     metadata: dict[str, Any]
 
 
-class PAIMON:
-    """Compatibility facade for the upgraded PAIMON Next RAG engine."""
+class AgenticRAGV1:
+    """Compatibility facade for the upgraded Agentic RAG V1 RAG engine."""
 
-    def __init__(self, memory_window: int = 5, bot_name: str = "PAIMON", verbose: bool = False):
+    def __init__(self, memory_window: int = 5, bot_name: str = "Agentic RAG", verbose: bool = False):
         self.name = bot_name
         self.verbose = verbose
         self.memory_window = memory_window
