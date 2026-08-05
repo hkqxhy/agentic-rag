@@ -109,6 +109,8 @@ class NewStudentAssistant:
         diagnostics = self._retrieval_diagnostics()
         confidence = self._blend_confidence(self._confidence(hits), diagnostics)
         intent = classify_intent(rewritten, hits)
+        if diagnostics.get("sufficient") is False:
+            intent = classify_intent(rewritten, [])
         warnings = self._warnings(hits)
 
         if self._should_clarify(hits, confidence, diagnostics):
@@ -175,6 +177,8 @@ class NewStudentAssistant:
         diagnostics = self._retrieval_diagnostics()
         confidence = self._blend_confidence(self._confidence(hits), diagnostics)
         intent = classify_intent(rewritten, hits)
+        if diagnostics.get("sufficient") is False:
+            intent = classify_intent(rewritten, [])
         warnings = self._warnings(hits)
 
         if self._should_clarify(hits, confidence, diagnostics):
@@ -408,8 +412,10 @@ class NewStudentAssistant:
     ) -> bool:
         if not hits or confidence < self.config.min_confidence:
             return True
-        if diagnostics.get("sufficient") is False and confidence < max(0.28, self.config.min_confidence):
-            return True
+        if diagnostics.get("sufficient") is False:
+            quality = diagnostics.get("quality", 0.0)
+            if not isinstance(quality, (int, float)) or quality < 0.65:
+                return True
         return False
 
     def _confidence(self, hits: list[SearchHit]) -> float:

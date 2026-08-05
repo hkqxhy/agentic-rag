@@ -2,9 +2,9 @@
 
 面向南京大学新生事务的、强调证据边界与可追溯引用的智能助手。仓库正在从可运行的本地 RAG 基线迁移为可部署、可评测、可扩展的 Agentic RAG 工程。
 
-当前处于 Phase 1 收口阶段。新的工程主干已经具备普通账号、安全会话、资源隔离、持久对话、异步任务、Redis 事件流、SSE、ChatGPT 式 Web 界面、数据库迁移、Docker Compose 和分层 CI。Agent 决策与新版知识检索尚未接入；现阶段 Worker 返回的内容只用于验证工程链路，不会冒充真实校务答案。
+Phase 1 已完成 ECS 验收，当前进入 Phase 2.1。工程主干已将 LangGraph 有界状态图、查询路由、Advanced/Graph RAG、证据核验、引用元数据、千问兼容接口和无模型降级接入异步 Worker；账号、持久会话、Redis 事件流、SSE、ChatGPT 式 Web 界面、数据库迁移、Docker Compose 与分层 CI 保持不变。
 
-## 一键启动 Phase 1
+## 一键启动
 
 需要 Docker 和 Docker Compose。首次启动会构建镜像、初始化 PostgreSQL，并启动 Redis、API、Worker 与 Web：
 
@@ -42,6 +42,16 @@ docker compose -f deploy/compose/docker-compose.yml down
 - 保留 V1 检索基线，后续可用于新版 RAG 的回归与消融对比。
 
 完整实现边界、API 契约与未完成门禁见 [Phase 1 实施记录](docs/PHASE1_IMPLEMENTATION.md)。总体路线见 [工程化重做方案](docs/REBUILD_PLAN_V1.md)。
+
+## Phase 2.1 已接入
+
+- LangGraph 状态图：标准化、意图/复杂度路由、直接回答、澄清、RAG 和证据核验；
+- 复用 Advanced RAG 与 Graph RAG 基线，支持查询改写、混合召回、融合重排、纠错检索和质量诊断；
+- Worker 复用单个 Agent runtime，把节点轨迹、置信度、来源、警告和检索诊断持久化到消息元数据；
+- 前端在回答下方展示最多三个知识来源，刷新历史对话后仍可恢复；
+- 兼容阿里云百炼 OpenAI 接口，未配置 API Key 时自动使用可审计的抽取式回答，不阻塞工程验收。
+
+Phase 1 的实测证据见 [Phase 1 验收报告](docs/PHASE1_ACCEPTANCE_REPORT.md)。
 
 ECS 公网部署的域名、Secret、安全组和启动步骤见 [ECS 部署手册](docs/ECS_DEPLOYMENT.md)。
 
@@ -90,11 +100,11 @@ python -X utf8 -m agentic_rag_v1.evaluate --suite smoke --output-dir reports
 
 ```text
 apps/web/                    Next.js 会话产品
-src/agentic_rag/             Phase 1 API、数据层、队列与 Worker
+src/agentic_rag/             API、数据层、队列、Worker 与 LangGraph Agent
 src/agentic_rag_v1/          可运行的 V1 检索基线
 migrations/                  Alembic 数据库迁移
 deploy/                      Dockerfile 与 Compose
-tests/unit/                  Phase 1 单元测试
+tests/unit/                  工程与 Agent 单元测试
 tests/integration/           PostgreSQL + Redis 纵向链路测试
 load/k6/                     ECS smoke/soak 压测脚本
 tests/test_agentic_rag_v1.py V1 回归测试

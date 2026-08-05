@@ -57,18 +57,18 @@ API 只负责认证与资源归属、数据写入、任务入队和事件转发�
 - 生产环境模板强制安全 Cookie 和独立审计密钥，ECS 脚本先校验再发布；
 - CI 拆为仓库边界、后端、真实依赖集成、前端和 Compose 五个门禁。
 
-## 3. 当前诚实边界
+## 3. Phase 1 冻结边界
 
-Worker 返回的是明确标记的 Phase 1 链路验证文本。LangGraph、Hybrid Retrieval、Reranker、引用核验、知识发布和千问模型调用尚未接入，因此不能用当前界面回答真实校务问题。
+Phase 1 冻结提交 `4173627` 的 Worker 返回明确标记的工程链路验证文本；该版本不用于真实校务回答。ECS 部署、故障演练、数据库恢复和 10/20 VU 压测均已完成，证据见 [`PHASE1_ACCEPTANCE_REPORT.md`](PHASE1_ACCEPTANCE_REPORT.md)。
 
-Agent、RAG 和千问调用仍未接入，Worker 继续返回明确标记的工程验证文本。当前代码具备公网部署边界，但尚未在 ECS 保存真实部署、故障演练和压力测试证据，因此本记录不宣称 Phase 1 已全部关闭。
+当前主分支已进入 Phase 2，开始接入 LangGraph、Advanced/Graph RAG、引用核验和千问兼容调用；知识库仍只有脱敏 fixture，因此正式校务答案仍以未来发布的受控知识版本为准。
 
-## 4. 下一批 Phase 1 任务
+## 4. Phase 1 验收状态
 
 1. ~~通过 GitHub CI 的后端、集成、前端和 Compose 全部门禁；~~ 已于 2026-08-05 通过；
-2. 按 [`ECS_STAGING_DEPLOYMENT.md`](ECS_STAGING_DEPLOYMENT.md) 在杭州免费 ECS 上执行受限 IP 预生产部署和浏览器验收；正式 TLS 验收留待具备域名与合规部署环境后执行；
-3. 验证双 API/双 Worker、Worker 中断恢复和数据库备份恢复；
-4. 执行约 10–20 在线用户的 k6 smoke/soak，并保存延迟、错误率和资源曲线；
-5. 冻结 Phase 1 演示版本，进入 Agent 编排与 Hybrid RAG 的 Phase 2。
+2. ~~在杭州免费 ECS 上执行受限 IP 预生产部署和浏览器验收；~~ 已完成；正式 TLS 留待域名；
+3. ~~验证 Worker 中断恢复、服务重启持久性和数据库备份恢复；~~ 已完成；
+4. ~~执行约 10–20 在线用户的 k6 压测并保存结果；~~ 已完成，HTTP 错误率为 0%；
+5. ~~冻结 Phase 1 演示版本并进入 Phase 2。~~ 已完成。
 
-完成这些任务并保存 CI、演示录屏和测试证据后，才能关闭 Phase 1 并进入知识平台与 Hybrid RAG。
+Phase 1 已关闭，后续变更按 Phase 2 门禁验收。

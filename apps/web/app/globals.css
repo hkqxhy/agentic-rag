@@ -582,6 +582,36 @@ input:focus-visible {
   color: var(--accent);
 }
 
+.message-sources {
+  display: grid;
+  gap: 7px;
+  margin-top: 2px;
+  color: var(--text-tertiary);
+  font-size: 11.5px;
+}
+
+.message-sources > span {
+  font-weight: 650;
+}
+
+.message-sources > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.source-chip {
+  max-width: min(100%, 34rem);
+  overflow: hidden;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .message-skeleton {
   display: grid;
   gap: 12px;

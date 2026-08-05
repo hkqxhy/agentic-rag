@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
@@ -69,6 +70,7 @@ class MessageView(BaseModel):
     conversation_id: UUID
     role: MessageRole
     content: str
+    message_metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
 
 

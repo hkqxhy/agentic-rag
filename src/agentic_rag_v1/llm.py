@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 import urllib.error
 import urllib.request
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Iterator
 from typing import Any
 
 
@@ -14,7 +14,7 @@ class OpenAICompatibleLLM:
 
     base_url: str = ""
     api_key: str = "EMPTY"
-    model: str = "Qwen"
+    model: str = "qwen-plus"
     timeout: float = 30.0
     temperature: float = 0.2
 

@@ -6,6 +6,7 @@ from uuid import UUID
 
 from redis.exceptions import RedisError
 
+from .agent import AgentRuntime
 from .broker import RunBroker
 from .database import Database
 from .repository import RunNotFoundError, RunRepository
@@ -29,7 +30,12 @@ def chunk_text(text: str, size: int = 14) -> list[str]:
     return [text[index : index + size] for index in range(0, len(text), size)]
 
 
-async def process_run(run_id: UUID, database: Database, broker: RunBroker) -> None:
+async def process_run(
+    run_id: UUID,
+    database: Database,
+    broker: RunBroker,
+    agent: AgentRuntime | None = None,
+) -> None:
     try:
         async with database.session() as session:
             repository = RunRepository(session)
@@ -41,8 +47,18 @@ async def process_run(run_id: UUID, database: Database, broker: RunBroker) -> No
             input_message = await repository.get_input_message(run)
             await session.commit()
 
-        await broker.publish(run_id, "run.status", {"stage": "processing"})
-        reply = build_phase1_reply(input_message.content)
+        await broker.publish(run_id, "run.status", {"stage": "agent"})
+        if await broker.is_cancelled(run_id):
+            return
+        runtime = agent or AgentRuntime()
+        outcome = await asyncio.to_thread(
+            runtime.invoke,
+            input_message.content,
+            str(run.conversation_id),
+        )
+        for step in outcome.trace:
+            await broker.publish(run_id, "agent.step", {"step": step})
+        reply = outcome.answer
         for delta in chunk_text(reply):
             if await broker.is_cancelled(run_id):
                 return
@@ -52,7 +68,11 @@ async def process_run(run_id: UUID, database: Database, broker: RunBroker) -> No
         async with database.session() as session:
             repository = RunRepository(session)
             run = await repository.get(run_id)
-            message = await repository.complete(run, reply)
+            message = await repository.complete(
+                run,
+                reply,
+                message_metadata=outcome.message_metadata(),
+            )
             await session.commit()
             message_payload = MessageView.model_validate(message).model_dump(mode="json")
         await broker.publish(run_id, "message.completed", {"message": message_payload})
@@ -97,13 +117,14 @@ async def worker_loop(settings: Settings | None = None) -> None:
     )
     database = Database(app_settings.database_url)
     broker = RunBroker.from_settings(app_settings)
-    LOGGER.info("Worker is ready")
+    agent = AgentRuntime()
+    LOGGER.info("Worker is ready with LangGraph agent runtime")
     try:
         while True:
             run_id = await dequeue_run(broker)
             if run_id is None:
                 continue
-            await process_run(run_id, database, broker)
+            await process_run(run_id, database, broker, agent)
     finally:
         await broker.close()
         await database.close()

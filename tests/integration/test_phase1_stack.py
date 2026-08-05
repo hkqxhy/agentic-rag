@@ -108,8 +108,11 @@ async def test_authenticated_owned_idempotent_stream_round_trip() -> None:
             await process_run(queued_run, app.state.database, app.state.broker)
             events = [event async for event in app.state.broker.events(queued_run)]
             assert events[0].event == "run.status"
+            assert any(event.event == "agent.step" for event in events)
             assert any(event.event == "message.delta" for event in events)
             assert events[-1].event == "message.completed"
+            completed_message = events[-1].data["message"]
+            assert completed_message["message_metadata"]["agent"]["framework"] == "langgraph"
 
             stored = await owner.get(f"/api/v1/conversations/{conversation_id}")
             assert stored.status_code == 200
@@ -118,6 +121,8 @@ async def test_authenticated_owned_idempotent_stream_round_trip() -> None:
                 "user",
                 "assistant",
             ]
+            assistant_message = stored.json()["messages"][-1]
+            assert assistant_message["message_metadata"]["agent"]["framework"] == "langgraph"
 
             logged_out = await owner.post("/api/v1/auth/logout")
             assert logged_out.status_code == 204

@@ -55,13 +55,13 @@ jobs:
       - name: Install package and test tools
         run: python -m pip install -e '.[dev]'
 
-      - name: Lint Phase 1 backend
+      - name: Lint backend
         run: ruff check src/agentic_rag tests/unit tests/integration
 
       - name: Compile Python sources
         run: python -m compileall -q src tests agentic_rag_v1_server.py
 
-      - name: Type-check Phase 1 backend
+      - name: Type-check backend
         run: mypy src/agentic_rag tests/unit tests/integration tests/e2e
 
       - name: Run unit and V1 regression tests

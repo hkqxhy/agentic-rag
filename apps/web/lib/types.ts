@@ -22,6 +22,22 @@ export interface Message {
   conversation_id: string;
   role: MessageRole;
   content: string;
+  message_metadata: {
+    agent?: {
+      framework?: string;
+      route?: string;
+      confidence?: number;
+      grounded?: boolean;
+      need_clarification?: boolean;
+    };
+    sources?: Array<{
+      id?: string;
+      title?: string;
+      source?: string;
+      score?: number;
+    }>;
+    warnings?: string[];
+  };
   created_at: string;
 }
 

@@ -95,6 +95,7 @@ export function ChatShell({ user, onLogout }: ChatShellProps) {
               conversation_id: conversationId,
               role: "assistant",
               content: "",
+              message_metadata: {},
               created_at: new Date().toISOString(),
             },
           ],
@@ -506,6 +507,18 @@ export function ChatShell({ user, onLogout }: ChatShellProps) {
                     <div className="message-content">
                       {message.content || (streaming && message.role === "assistant" ? "正在生成" : "")}
                     </div>
+                    {message.role === "assistant" && message.message_metadata.sources?.length ? (
+                      <div className="message-sources" aria-label="回答依据">
+                        <span>回答依据</span>
+                        <div>
+                          {message.message_metadata.sources.slice(0, 3).map((source, index) => (
+                            <span className="source-chip" key={`${message.id}-${source.id ?? index}`}>
+                              [{source.id ?? `S${index + 1}`}] {source.title ?? "知识库资料"}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </article>
                 ))}
               </div>

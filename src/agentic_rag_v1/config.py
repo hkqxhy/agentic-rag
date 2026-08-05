@@ -4,7 +4,6 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-
 DEFAULT_SOURCE_NAMES = (
     "南哪QA.qa",
     "南哪23级本科①群.txt.qa",
@@ -51,7 +50,7 @@ class RAGConfig:
     use_graphrag: bool = True
     llm_base_url: str = ""
     llm_api_key: str = "EMPTY"
-    llm_model: str = "Qwen"
+    llm_model: str = "qwen-plus"
     llm_timeout: float = 30.0
 
     def __post_init__(self) -> None:
@@ -77,7 +76,7 @@ class RAGConfig:
             )
 
     @classmethod
-    def from_env(cls, root: str | Path | None = None) -> "RAGConfig":
+    def from_env(cls, root: str | Path | None = None) -> RAGConfig:
         project_root = Path(root or os.getenv("AGENTIC_RAG_ROOT", ".")).resolve()
         load_env_file(project_root / ".env.local")
         source_value = os.getenv("AGENTIC_RAG_SOURCE_PATHS", "")
@@ -94,6 +93,6 @@ class RAGConfig:
             use_graphrag=os.getenv("AGENTIC_RAG_USE_GRAPHRAG", "1") != "0",
             llm_base_url=os.getenv("AGENTIC_RAG_LLM_BASE_URL", "").strip(),
             llm_api_key=os.getenv("AGENTIC_RAG_LLM_API_KEY", "EMPTY"),
-            llm_model=os.getenv("AGENTIC_RAG_LLM_MODEL", "Qwen"),
+            llm_model=os.getenv("AGENTIC_RAG_LLM_MODEL", "qwen-plus"),
             llm_timeout=float(os.getenv("AGENTIC_RAG_LLM_TIMEOUT", "30")),
         )

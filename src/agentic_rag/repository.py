@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -199,11 +200,17 @@ class RunRepository:
         )
         return result.scalar_one_or_none() is not None
 
-    async def complete(self, run: AgentRunModel, content: str) -> MessageModel:
+    async def complete(
+        self,
+        run: AgentRunModel,
+        content: str,
+        message_metadata: dict[str, Any] | None = None,
+    ) -> MessageModel:
         message = MessageModel(
             conversation_id=run.conversation_id,
             role=MessageRole.ASSISTANT.value,
             content=content,
+            message_metadata=message_metadata or {},
         )
         self.session.add(message)
         await self.session.flush()
