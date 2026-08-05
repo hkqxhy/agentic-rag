@@ -15,6 +15,7 @@ from agentic_rag.security import (
     generate_session_token,
     hash_password,
     hash_session_token,
+    private_identifier,
     verify_password,
 )
 from agentic_rag.settings import Settings
@@ -56,6 +57,16 @@ async def test_passwords_are_argon2_hashed_and_sessions_are_opaque() -> None:
     assert not await verify_password("wrong-password", password_hash)
     assert len(token) >= 40
     assert hash_session_token(token) != token
+
+
+def test_rate_limit_identifier_does_not_expose_account_name() -> None:
+    settings = Settings(_env_file=None, audit_hash_key="unit-test-secret")
+    first = private_identifier("Student_01", settings)
+    second = private_identifier(" student_01 ", settings)
+
+    assert first == second
+    assert "student_01" not in first
+    assert len(first) == 64
 
 
 @pytest.mark.asyncio

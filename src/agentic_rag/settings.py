@@ -32,8 +32,9 @@ class Settings(BaseSettings):
     trust_proxy_headers: bool = False
     question_rate_limit: int = Field(default=10, ge=1, le=300)
     question_rate_window_seconds: int = Field(default=60, ge=1, le=3_600)
-    ip_question_rate_limit: int = Field(default=30, ge=1, le=1_000)
-    auth_rate_limit: int = Field(default=10, ge=1, le=100)
+    ip_question_rate_limit: int = Field(default=120, ge=1, le=1_000)
+    auth_rate_limit: int = Field(default=60, ge=1, le=500)
+    auth_identity_rate_limit: int = Field(default=10, ge=1, le=100)
     auth_rate_window_seconds: int = Field(default=300, ge=10, le=3_600)
     otel_enabled: bool = False
     otel_exporter_otlp_endpoint: str = "http://otel-collector:4318/v1/traces"

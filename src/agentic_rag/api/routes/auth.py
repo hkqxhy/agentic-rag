@@ -13,25 +13,33 @@ from agentic_rag.security import (
     generate_session_token,
     hash_password,
     hash_session_token,
+    private_identifier,
     verify_password,
 )
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
-async def _enforce_auth_rate_limit(request: Request) -> None:
+async def _enforce_auth_rate_limit(request: Request, identifier: str) -> None:
     settings = request.app.state.settings
-    result = await request.app.state.broker.consume_rate_limit(
-        f"auth:{request_fingerprint(request)}",
-        settings.auth_rate_limit,
-        settings.auth_rate_window_seconds,
-    )
-    if not result.allowed:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many authentication attempts",
-            headers={"Retry-After": str(result.retry_after_seconds)},
+    for scope, limit in (
+        (f"auth:client:{request_fingerprint(request)}", settings.auth_rate_limit),
+        (
+            f"auth:identity:{private_identifier(identifier, settings)}",
+            settings.auth_identity_rate_limit,
+        ),
+    ):
+        result = await request.app.state.broker.consume_rate_limit(
+            scope,
+            limit,
+            settings.auth_rate_window_seconds,
         )
+        if not result.allowed:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many authentication attempts",
+                headers={"Retry-After": str(result.retry_after_seconds)},
+            )
 
 
 def _set_session_cookie(response: Response, request: Request, token: str) -> None:
@@ -50,7 +58,7 @@ def _set_session_cookie(response: Response, request: Request, token: str) -> Non
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 async def register(payload: RegisterRequest, request: Request, response: Response) -> AuthResponse:
-    await _enforce_auth_rate_limit(request)
+    await _enforce_auth_rate_limit(request, payload.email)
     password_hash = await hash_password(payload.password)
     fingerprint = request_fingerprint(request)
     token = generate_session_token()
@@ -91,7 +99,7 @@ async def register(payload: RegisterRequest, request: Request, response: Respons
 
 @router.post("/login", response_model=AuthResponse)
 async def login(payload: LoginRequest, request: Request, response: Response) -> AuthResponse:
-    await _enforce_auth_rate_limit(request)
+    await _enforce_auth_rate_limit(request, payload.identifier)
     fingerprint = request_fingerprint(request)
     async with request.app.state.database.session() as session:
         repository = AuthRepository(session)

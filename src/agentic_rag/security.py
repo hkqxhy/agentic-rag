@@ -47,3 +47,11 @@ def client_fingerprint(request: Request, settings: Settings) -> str:
         source.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
+
+
+def private_identifier(value: str, settings: Settings) -> str:
+    return hmac.new(
+        settings.audit_hash_key.encode("utf-8"),
+        value.strip().casefold().encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()

@@ -155,3 +155,10 @@ jobs:
 
       - name: Validate Compose model
         run: docker compose -f deploy/compose/docker-compose.yml config --quiet
+
+      - name: Validate k6 load-test contract
+        run: >-
+          docker run --rm
+          -v "$PWD/load/k6:/scripts:ro"
+          grafana/k6:2.0.0
+          inspect /scripts/phase1-smoke.js

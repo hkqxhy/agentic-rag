@@ -96,6 +96,7 @@ migrations/                  Alembic 数据库迁移
 deploy/                      Dockerfile 与 Compose
 tests/unit/                  Phase 1 单元测试
 tests/integration/           PostgreSQL + Redis 纵向链路测试
+load/k6/                     ECS smoke/soak 压测脚本
 tests/test_agentic_rag_v1.py V1 回归测试
 knowledge/                   schema、manifest 规则和脱敏 fixture
 eval/cases/                  版本化评测样例
