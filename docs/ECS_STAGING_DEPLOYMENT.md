@@ -49,6 +49,8 @@ openssl rand -hex 32
 
 杭州 ECS 访问 Docker Hub 不稳定，预生产模板把 PostgreSQL、Redis、Caddy、Python 和 Node.js 基础镜像显式指向 Amazon ECR Public。Compose 与 Dockerfile 都保留可配置镜像参数，本地开发和具备正常 Docker Hub 网络的环境仍使用原始官方镜像名。
 
+Python 依赖安装同样通过构建参数区分环境：杭州预生产默认使用阿里云 PyPI HTTPS 镜像，其他环境默认使用官方 PyPI。Dockerfile 不再在每次构建中升级 pip，减少一次不必要的跨境下载和不可重复变化。
+
 ## 4. 启动
 
 ```bash
