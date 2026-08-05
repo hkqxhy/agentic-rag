@@ -173,7 +173,16 @@ jobs:
           while IFS='=' read -r name image; do
             case "$name" in
               POSTGRES_IMAGE|REDIS_IMAGE|CADDY_IMAGE|PYTHON_BASE_IMAGE|NODE_BASE_IMAGE)
-                docker buildx imagetools inspect "$image" >/dev/null
+                for attempt in 1 2 3 4; do
+                  if docker buildx imagetools inspect "$image" >/dev/null; then
+                    break
+                  fi
+                  if [ "$attempt" -eq 4 ]; then
+                    echo "Unable to inspect $image after $attempt attempts" >&2
+                    exit 1
+                  fi
+                  sleep $((attempt * 5))
+                done
                 ;;
             esac
           done < deploy/env/staging.env.example
