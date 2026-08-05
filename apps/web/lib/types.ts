@@ -1,6 +1,22 @@
 export type MessageRole = "user" | "assistant" | "system";
 export type RunStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  created_at: string;
+}
+
+export interface AuthResponse {
+  user: User;
+}
+
+export interface ActiveRun {
+  run_id: string;
+  status: RunStatus;
+}
+
 export interface Message {
   id: string;
   conversation_id: string;
@@ -18,6 +34,7 @@ export interface ConversationSummary {
 
 export interface ConversationDetail extends ConversationSummary {
   messages: Message[];
+  active_run: ActiveRun | null;
 }
 
 export interface RunAccepted {

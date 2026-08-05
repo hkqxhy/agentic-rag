@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -19,12 +19,20 @@ class RunNotFoundError(LookupError):
     pass
 
 
+class IdempotencyConflictError(ValueError):
+    pass
+
+
 class ConversationRepository:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, owner_id: UUID) -> None:
         self.session = session
+        self.owner_id = owner_id
 
     async def create(self, title: str) -> ConversationModel:
-        conversation = ConversationModel(title=title.strip() or "新对话")
+        conversation = ConversationModel(
+            owner_id=self.owner_id,
+            title=title.strip() or "新对话",
+        )
         self.session.add(conversation)
         await self.session.flush()
         await self.session.refresh(conversation)
@@ -33,7 +41,10 @@ class ConversationRepository:
     async def list_active(self, limit: int = 100) -> list[ConversationModel]:
         result = await self.session.scalars(
             select(ConversationModel)
-            .where(ConversationModel.deleted_at.is_(None))
+            .where(
+                ConversationModel.owner_id == self.owner_id,
+                ConversationModel.deleted_at.is_(None),
+            )
             .order_by(ConversationModel.updated_at.desc())
             .limit(limit)
         )
@@ -45,6 +56,7 @@ class ConversationRepository:
             .options(selectinload(ConversationModel.messages))
             .where(
                 ConversationModel.id == conversation_id,
+                ConversationModel.owner_id == self.owner_id,
                 ConversationModel.deleted_at.is_(None),
             )
         )
@@ -69,18 +81,33 @@ class ConversationRepository:
         self,
         conversation_id: UUID,
         content: str,
-    ) -> tuple[MessageModel, AgentRunModel]:
+        idempotency_key: str | None = None,
+    ) -> tuple[MessageModel, AgentRunModel, bool]:
         conversation = await self.get(conversation_id)
+        normalized_content = content.strip()
+        if idempotency_key:
+            existing = await self.session.scalar(
+                select(AgentRunModel).where(
+                    AgentRunModel.conversation_id == conversation.id,
+                    AgentRunModel.idempotency_key == idempotency_key,
+                )
+            )
+            if existing is not None:
+                input_message = await self.session.get(MessageModel, existing.input_message_id)
+                if input_message is None or input_message.content != normalized_content:
+                    raise IdempotencyConflictError(idempotency_key)
+                return input_message, existing, False
         message = MessageModel(
             conversation_id=conversation.id,
             role=MessageRole.USER.value,
-            content=content.strip(),
+            content=normalized_content,
         )
         self.session.add(message)
         await self.session.flush()
         run = AgentRunModel(
             conversation_id=conversation.id,
             input_message_id=message.id,
+            idempotency_key=idempotency_key,
             status=RunStatus.QUEUED.value,
         )
         self.session.add(run)
@@ -90,7 +117,39 @@ class ConversationRepository:
         await self.session.flush()
         await self.session.refresh(message)
         await self.session.refresh(run)
-        return message, run
+        return message, run, True
+
+    async def get_idempotent_run(
+        self,
+        conversation_id: UUID,
+        idempotency_key: str,
+        content: str,
+    ) -> tuple[MessageModel, AgentRunModel]:
+        await self.get(conversation_id)
+        run = await self.session.scalar(
+            select(AgentRunModel).where(
+                AgentRunModel.conversation_id == conversation_id,
+                AgentRunModel.idempotency_key == idempotency_key,
+            )
+        )
+        if run is None:
+            raise RunNotFoundError(idempotency_key)
+        input_message = await self.session.get(MessageModel, run.input_message_id)
+        if input_message is None or input_message.content != content.strip():
+            raise IdempotencyConflictError(idempotency_key)
+        return input_message, run
+
+    async def get_active_run(self, conversation_id: UUID) -> AgentRunModel | None:
+        await self.get(conversation_id)
+        return await self.session.scalar(
+            select(AgentRunModel)
+            .where(
+                AgentRunModel.conversation_id == conversation_id,
+                AgentRunModel.status.in_([RunStatus.QUEUED.value, RunStatus.RUNNING.value]),
+            )
+            .order_by(AgentRunModel.created_at.desc())
+            .limit(1)
+        )
 
 
 class RunRepository:
@@ -99,6 +158,20 @@ class RunRepository:
 
     async def get(self, run_id: UUID) -> AgentRunModel:
         run = await self.session.get(AgentRunModel, run_id)
+        if run is None:
+            raise RunNotFoundError(str(run_id))
+        return run
+
+    async def get_for_owner(self, run_id: UUID, owner_id: UUID) -> AgentRunModel:
+        run = await self.session.scalar(
+            select(AgentRunModel)
+            .join(ConversationModel, ConversationModel.id == AgentRunModel.conversation_id)
+            .where(
+                AgentRunModel.id == run_id,
+                ConversationModel.owner_id == owner_id,
+                ConversationModel.deleted_at.is_(None),
+            )
+        )
         if run is None:
             raise RunNotFoundError(str(run_id))
         return run
@@ -113,6 +186,18 @@ class RunRepository:
         run.status = RunStatus.RUNNING.value
         run.updated_at = datetime.now(UTC)
         await self.session.flush()
+
+    async def claim_queued(self, run_id: UUID) -> bool:
+        result = await self.session.execute(
+            update(AgentRunModel)
+            .where(
+                AgentRunModel.id == run_id,
+                AgentRunModel.status == RunStatus.QUEUED.value,
+            )
+            .values(status=RunStatus.RUNNING.value, updated_at=datetime.now(UTC))
+            .returning(AgentRunModel.id)
+        )
+        return result.scalar_one_or_none() is not None
 
     async def complete(self, run: AgentRunModel, content: str) -> MessageModel:
         message = MessageModel(
@@ -136,8 +221,17 @@ class RunRepository:
         run.updated_at = datetime.now(UTC)
         await self.session.flush()
 
+    async def fail_queued(self, run_id: UUID, code: str, message: str) -> None:
+        run = await self.get(run_id)
+        if run.status == RunStatus.QUEUED.value:
+            await self.fail(run, code, message)
+
     async def cancel(self, run: AgentRunModel) -> None:
-        if run.status in {RunStatus.COMPLETED.value, RunStatus.FAILED.value}:
+        if run.status in {
+            RunStatus.COMPLETED.value,
+            RunStatus.FAILED.value,
+            RunStatus.CANCELLED.value,
+        }:
             return
         run.status = RunStatus.CANCELLED.value
         run.updated_at = datetime.now(UTC)

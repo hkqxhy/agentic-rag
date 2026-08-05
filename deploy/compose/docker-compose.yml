@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: agentic_rag
       POSTGRES_USER: agentic_rag
-      POSTGRES_PASSWORD: agentic_rag
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentic_rag}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U agentic_rag -d agentic_rag"]
       interval: 5s
@@ -35,9 +35,12 @@ services:
     command: ["alembic", "upgrade", "head"]
     environment: &backend-environment
       AGENTIC_RAG_ENVIRONMENT: development
-      AGENTIC_RAG_DATABASE_URL: postgresql+asyncpg://agentic_rag:agentic_rag@postgres:5432/agentic_rag
+      AGENTIC_RAG_DATABASE_URL: postgresql+asyncpg://agentic_rag:${POSTGRES_PASSWORD:-agentic_rag}@postgres:5432/agentic_rag
       AGENTIC_RAG_REDIS_URL: redis://redis:6379/0
       AGENTIC_RAG_CORS_ORIGINS: http://localhost:3000
+      AGENTIC_RAG_SESSION_COOKIE_SECURE: "false"
+      AGENTIC_RAG_AUDIT_HASH_KEY: ${AGENTIC_RAG_AUDIT_HASH_KEY:-development-only-change-me}
+      AGENTIC_RAG_TRUST_PROXY_HEADERS: "false"
     depends_on:
       postgres:
         condition: service_healthy
@@ -53,7 +56,7 @@ services:
       migrate:
         condition: service_completed_successfully
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     healthcheck:
       test:
         [
@@ -66,6 +69,7 @@ services:
       timeout: 3s
       retries: 10
     restart: unless-stopped
+    stop_grace_period: 30s
 
   worker:
     build:
@@ -88,7 +92,7 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     restart: unless-stopped
 
 volumes:

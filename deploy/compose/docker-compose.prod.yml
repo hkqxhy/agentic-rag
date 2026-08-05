@@ -1,0 +1,51 @@
+name: agentic-rag
+
+services:
+  migrate:
+    environment: &production-backend-environment
+      AGENTIC_RAG_ENVIRONMENT: production
+      AGENTIC_RAG_DATABASE_URL: postgresql+asyncpg://agentic_rag:${POSTGRES_PASSWORD}@postgres:5432/agentic_rag
+      AGENTIC_RAG_REDIS_URL: redis://redis:6379/0
+      AGENTIC_RAG_CORS_ORIGINS: https://${SITE_ADDRESS}
+      AGENTIC_RAG_SESSION_COOKIE_SECURE: "true"
+      AGENTIC_RAG_AUDIT_HASH_KEY: ${AGENTIC_RAG_AUDIT_HASH_KEY}
+      AGENTIC_RAG_TRUST_PROXY_HEADERS: "true"
+      AGENTIC_RAG_QUESTION_RATE_LIMIT: ${QUESTION_RATE_LIMIT:-10}
+      AGENTIC_RAG_QUESTION_RATE_WINDOW_SECONDS: ${QUESTION_RATE_WINDOW_SECONDS:-60}
+      AGENTIC_RAG_IP_QUESTION_RATE_LIMIT: ${IP_QUESTION_RATE_LIMIT:-30}
+      AGENTIC_RAG_AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT:-10}
+      AGENTIC_RAG_AUTH_RATE_WINDOW_SECONDS: ${AUTH_RATE_WINDOW_SECONDS:-300}
+
+  api:
+    environment: *production-backend-environment
+
+  worker:
+    environment: *production-backend-environment
+
+  web:
+    build:
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ""
+
+  caddy:
+    image: caddy:2.10-alpine
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS}
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

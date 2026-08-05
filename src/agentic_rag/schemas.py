@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class MessageRole(StrEnum):
@@ -19,6 +19,35 @@ class RunStatus(StrEnum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+
+
+class UserView(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    email: EmailStr
+    username: str
+    created_at: datetime
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    username: str = Field(min_length=3, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
+    password: str = Field(min_length=10, max_length=128)
+
+    @field_validator("username")
+    @classmethod
+    def normalize_username(cls, value: str) -> str:
+        return value.strip().casefold()
+
+
+class LoginRequest(BaseModel):
+    identifier: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=1, max_length=128)
+
+
+class AuthResponse(BaseModel):
+    user: UserView
 
 
 class ConversationCreate(BaseModel):
@@ -52,8 +81,14 @@ class ConversationSummary(BaseModel):
     updated_at: datetime
 
 
+class ActiveRunView(BaseModel):
+    run_id: UUID
+    status: RunStatus
+
+
 class ConversationDetail(ConversationSummary):
     messages: list[MessageView]
+    active_run: ActiveRunView | None = None
 
 
 class RunAccepted(BaseModel):

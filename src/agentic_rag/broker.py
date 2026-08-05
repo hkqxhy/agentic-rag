@@ -18,7 +18,22 @@ class StreamEvent:
     event_id: str | None = None
 
 
+@dataclass(slots=True, frozen=True)
+class RateLimitResult:
+    allowed: bool
+    remaining: int
+    retry_after_seconds: int
+
+
 class RunBroker:
+    _RATE_LIMIT_SCRIPT = """
+local current = redis.call('INCR', KEYS[1])
+if current == 1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+local ttl = redis.call('TTL', KEYS[1])
+return {current, ttl}
+"""
     def __init__(self, redis: Redis, settings: Settings) -> None:
         self.redis = redis
         self.settings = settings
@@ -42,6 +57,24 @@ class RunBroker:
 
     async def enqueue(self, run_id: UUID) -> None:
         await self.redis.rpush(self.settings.run_queue_key, str(run_id))
+
+    async def consume_rate_limit(
+        self,
+        scope: str,
+        limit: int,
+        window_seconds: int,
+    ) -> RateLimitResult:
+        key = f"agentic_rag:rate:{scope}"
+        result = cast(
+            list[int],
+            await self.redis.eval(self._RATE_LIMIT_SCRIPT, 1, key, window_seconds),
+        )
+        current, ttl = int(result[0]), max(int(result[1]), 1)
+        return RateLimitResult(
+            allowed=current <= limit,
+            remaining=max(limit - current, 0),
+            retry_after_seconds=ttl,
+        )
 
     async def cancel(self, run_id: UUID) -> None:
         await self.redis.setex(

@@ -2,7 +2,7 @@
 
 面向南京大学新生事务的、强调证据边界与可追溯引用的智能助手。仓库正在从可运行的本地 RAG 基线迁移为可部署、可评测、可扩展的 Agentic RAG 工程。
 
-当前已进入 Phase 1。新的工程主干已经具备持久会话、异步任务、Redis 事件流、SSE、ChatGPT 式 Web 界面、数据库迁移、Docker Compose 和分层 CI。Agent 决策与新版知识检索尚未接入；现阶段 Worker 返回的内容只用于验证工程链路，不会冒充真实校务答案。
+当前处于 Phase 1 收口阶段。新的工程主干已经具备普通账号、安全会话、资源隔离、持久对话、异步任务、Redis 事件流、SSE、ChatGPT 式 Web 界面、数据库迁移、Docker Compose 和分层 CI。Agent 决策与新版知识检索尚未接入；现阶段 Worker 返回的内容只用于验证工程链路，不会冒充真实校务答案。
 
 ## 一键启动 Phase 1
 
@@ -19,6 +19,8 @@ docker compose -f deploy/compose/docker-compose.yml up --build
 - 存活探针：<http://localhost:8000/health/live>
 - 就绪探针：<http://localhost:8000/health/ready>
 
+首次打开 Web 时创建普通账户。登录会话由 HttpOnly Cookie 保存，历史对话只对所属账户可见。
+
 停止服务：
 
 ```bash
@@ -30,14 +32,18 @@ docker compose -f deploy/compose/docker-compose.yml down
 ## Phase 1 已实现
 
 - FastAPI 异步 API、分层配置、请求 ID、Server-Timing 和 OpenTelemetry 接入点；
-- PostgreSQL 会话、消息和 Agent run 模型，以及 Alembic 迁移；
-- Redis 任务队列、可重放事件流、心跳、游标、取消信号和事件过期；
+- PostgreSQL 普通账户、哈希会话、审计事件、对话、消息和 Agent run 模型，以及 Alembic 迁移；
+- Argon2 密码哈希、HttpOnly/SameSite Cookie、资源所有权隔离和登录/提问限流；
+- Redis 任务队列、原子限流、可重放事件流、心跳、游标、取消信号和事件过期；
 - 独立 Worker 与流式响应链路，API 副本不持有会话内存；
-- Next.js App Router 前端：新建、搜索、切换、重命名和删除对话，底部输入框，SSE 流式响应，停止生成，浅色/深色模式与移动端侧栏；
+- Next.js App Router 前端：注册/登录、登录态恢复、新建、搜索、切换、重命名和删除对话，底部输入框，SSE 流式响应、刷新续接、停止生成、浅色/深色模式与移动端侧栏；
+- Caddy 同源反向代理、自动 TLS、生产环境模板和 ECS 部署脚本；
 - 后端单元测试、PostgreSQL/Redis 集成测试、前端 lint/typecheck/build 和 Compose 校验；
 - 保留 V1 检索基线，后续可用于新版 RAG 的回归与消融对比。
 
 完整实现边界、API 契约与未完成门禁见 [Phase 1 实施记录](docs/PHASE1_IMPLEMENTATION.md)。总体路线见 [工程化重做方案](docs/REBUILD_PLAN_V1.md)。
+
+ECS 公网部署的域名、Secret、安全组和启动步骤见 [ECS 部署手册](docs/ECS_DEPLOYMENT.md)。
 
 ## 本地开发
 

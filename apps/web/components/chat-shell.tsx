@@ -18,15 +18,17 @@ import {
   PencilSimple,
   Plus,
   SidebarSimple,
+  SignOut,
   Square,
   Sun,
   Trash,
+  UserCircle,
   X,
 } from "@phosphor-icons/react";
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { api, openRunStream } from "@/lib/api";
-import type { ConversationSummary, Message as ChatMessage } from "@/lib/types";
+import type { ConversationSummary, Message as ChatMessage, User } from "@/lib/types";
 import { useAppearance } from "@/components/theme-provider";
 
 const SUGGESTIONS = [
@@ -36,7 +38,12 @@ const SUGGESTIONS = [
   "仙林校区宿舍有哪些注意事项？",
 ];
 
-export function ChatShell() {
+interface ChatShellProps {
+  user: User;
+  onLogout: () => Promise<void>;
+}
+
+export function ChatShell({ user, onLogout }: ChatShellProps) {
   const { appearance, toggleAppearance } = useAppearance();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -64,6 +71,70 @@ export function ChatShell() {
     return items;
   }, []);
 
+  const finishStream = useCallback((nextStatus: string) => {
+    streamRef.current?.close();
+    streamRef.current = null;
+    runIdRef.current = null;
+    temporaryMessageIdRef.current = null;
+    setStreaming(false);
+    setStatusText(nextStatus);
+  }, []);
+
+  const connectRunStream = useCallback((runId: string, conversationId: string) => {
+    streamRef.current?.close();
+    const temporaryMessageId = `streaming-${runId}`;
+    temporaryMessageIdRef.current = temporaryMessageId;
+    runIdRef.current = runId;
+    setMessages((current) =>
+      current.some((message) => message.id === temporaryMessageId)
+        ? current
+        : [
+            ...current,
+            {
+              id: temporaryMessageId,
+              conversation_id: conversationId,
+              role: "assistant",
+              content: "",
+              created_at: new Date().toISOString(),
+            },
+          ],
+    );
+    setStreaming(true);
+    setStatusText("正在处理");
+    streamRef.current = openRunStream(runId, {
+      onDelta: ({ text }) => {
+        setStatusText("正在生成");
+        setMessages((current) =>
+          current.map((message) =>
+            message.id === temporaryMessageId
+              ? { ...message, content: message.content + text }
+              : message,
+          ),
+        );
+      },
+      onCompleted: ({ message }) => {
+        setMessages((current) =>
+          current.map((item) => (item.id === temporaryMessageId ? message : item)),
+        );
+        finishStream("回答完成");
+        void refreshConversations();
+      },
+      onFailed: ({ message }) => {
+        setMessages((current) => current.filter((item) => item.id !== temporaryMessageId));
+        setError(message || "本次任务未能完成");
+        finishStream("任务失败");
+      },
+      onCancelled: () => {
+        setMessages((current) => current.filter((item) => item.id !== temporaryMessageId));
+        finishStream("已停止生成");
+      },
+      onConnectionError: () => {
+        setError("流式连接已断开，可重新打开当前对话恢复进度");
+        finishStream("连接已断开");
+      },
+    });
+  }, [finishStream, refreshConversations]);
+
   const openConversation = useCallback(async (id: string) => {
     setLoadingConversation(true);
     setError(null);
@@ -71,13 +142,18 @@ export function ChatShell() {
       const conversation = await api.getConversation(id);
       setActiveConversationId(id);
       setMessages(conversation.messages);
+      if (conversation.active_run) {
+        connectRunStream(conversation.active_run.run_id, conversation.id);
+      } else {
+        finishStream("准备就绪");
+      }
       setSidebarOpen(false);
     } catch (requestError) {
       setError(toErrorMessage(requestError));
     } finally {
       setLoadingConversation(false);
     }
-  }, []);
+  }, [connectRunStream, finishStream]);
 
   useEffect(() => {
     let active = true;
@@ -93,6 +169,9 @@ export function ChatShell() {
         if (!active) return;
         setActiveConversationId(conversation.id);
         setMessages(conversation.messages);
+        if (conversation.active_run) {
+          connectRunStream(conversation.active_run.run_id, conversation.id);
+        }
       })
       .catch((requestError) => {
         if (active) setError(toErrorMessage(requestError));
@@ -107,7 +186,7 @@ export function ChatShell() {
       active = false;
       streamRef.current?.close();
     };
-  }, []);
+  }, [connectRunStream]);
 
   const filteredConversations = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("zh-CN");
@@ -183,69 +262,16 @@ export function ChatShell() {
         setConversations((current) => [conversation, ...current]);
       }
       const accepted = await api.sendMessage(conversationId, content);
-      const temporaryMessageId = `streaming-${accepted.run_id}`;
-      temporaryMessageIdRef.current = temporaryMessageId;
-      runIdRef.current = accepted.run_id;
       setMessages((current) => [
         ...current,
         accepted.input_message,
-        {
-          id: temporaryMessageId,
-          conversation_id: conversationId,
-          role: "assistant",
-          content: "",
-          created_at: new Date().toISOString(),
-        },
       ]);
       setInput("");
-      setStreaming(true);
-      setStatusText("正在处理");
-
-      streamRef.current = openRunStream(accepted.run_id, {
-        onDelta: ({ text }) => {
-          setStatusText("正在生成");
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === temporaryMessageId
-                ? { ...message, content: message.content + text }
-                : message,
-            ),
-          );
-        },
-        onCompleted: ({ message }) => {
-          setMessages((current) =>
-            current.map((item) => (item.id === temporaryMessageId ? message : item)),
-          );
-          finishStream("回答完成");
-          void refreshConversations();
-        },
-        onFailed: ({ message }) => {
-          setMessages((current) => current.filter((item) => item.id !== temporaryMessageId));
-          setError(message || "本次任务未能完成");
-          finishStream("任务失败");
-        },
-        onCancelled: () => {
-          setMessages((current) => current.filter((item) => item.id !== temporaryMessageId));
-          finishStream("已停止生成");
-        },
-        onConnectionError: () => {
-          setError("流式连接已断开，请稍后重试");
-          finishStream("连接已断开");
-        },
-      });
+      connectRunStream(accepted.run_id, conversationId);
     } catch (requestError) {
       setError(toErrorMessage(requestError));
       finishStream("发送失败");
     }
-  }
-
-  function finishStream(nextStatus: string) {
-    streamRef.current?.close();
-    streamRef.current = null;
-    runIdRef.current = null;
-    temporaryMessageIdRef.current = null;
-    setStreaming(false);
-    setStatusText(nextStatus);
   }
 
   async function stopStreaming() {
@@ -412,9 +438,24 @@ export function ChatShell() {
           )}
         </div>
 
-        <div className="sidebar-footer">
-          <span>工程联调模式</span>
-          <span>知识库更新接口待接入</span>
+        <div className="sidebar-footer account-footer">
+          <div className="account-summary">
+            <UserCircle size={21} />
+            <span>
+              <strong>{user.username}</strong>
+              <small>{user.email}</small>
+            </span>
+          </div>
+          <Tooltip content="退出登录">
+            <IconButton
+              variant="ghost"
+              color="gray"
+              aria-label="退出登录"
+              onClick={() => void onLogout()}
+            >
+              <SignOut size={18} />
+            </IconButton>
+          </Tooltip>
         </div>
       </aside>
 

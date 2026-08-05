@@ -5,6 +5,7 @@ import type {
   DeltaEvent,
   FailedEvent,
   RunAccepted,
+  AuthResponse,
 } from "@/lib/types";
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000").replace(
@@ -15,6 +16,7 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...init?.headers,
@@ -28,13 +30,28 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       // Keep the status-based fallback when the response is not JSON.
     }
-    throw new Error(detail);
+    if (response.status === 401 && typeof window !== "undefined") {
+      window.dispatchEvent(new Event("agentic-rag:unauthorized"));
+    }
+    throw new ApiError(detail, response.status);
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
 
 export const api = {
+  me: () => request<AuthResponse>("/api/v1/auth/me"),
+  register: (email: string, username: string, password: string) =>
+    request<AuthResponse>("/api/v1/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, username, password }),
+    }),
+  login: (identifier: string, password: string) =>
+    request<AuthResponse>("/api/v1/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ identifier, password }),
+    }),
+  logout: () => request<void>("/api/v1/auth/logout", { method: "POST" }),
   listConversations: () => request<ConversationSummary[]>("/api/v1/conversations"),
   createConversation: (title = "新对话") =>
     request<ConversationSummary>("/api/v1/conversations", {
@@ -53,6 +70,7 @@ export const api = {
   sendMessage: (id: string, content: string) =>
     request<RunAccepted>(`/api/v1/conversations/${id}/messages`, {
       method: "POST",
+      headers: { "Idempotency-Key": crypto.randomUUID() },
       body: JSON.stringify({ content }),
     }),
   cancelRun: (runId: string) =>
@@ -68,7 +86,9 @@ export interface StreamHandlers {
 }
 
 export function openRunStream(runId: string, handlers: StreamHandlers): EventSource {
-  const stream = new EventSource(`${API_BASE_URL}/api/v1/runs/${runId}/events`);
+  const stream = new EventSource(`${API_BASE_URL}/api/v1/runs/${runId}/events`, {
+    withCredentials: true,
+  });
   stream.addEventListener("message.delta", (event) => {
     handlers.onDelta(JSON.parse((event as MessageEvent<string>).data) as DeltaEvent);
   });
@@ -88,4 +108,14 @@ export function openRunStream(runId: string, handlers: StreamHandlers): EventSou
     if (stream.readyState === EventSource.CLOSED) handlers.onConnectionError();
   };
   return stream;
+}
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
 }

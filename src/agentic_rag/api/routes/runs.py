@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 
+from agentic_rag.auth import AuditRepository, request_fingerprint, require_user
 from agentic_rag.broker import StreamEvent
+from agentic_rag.models import UserModel
 from agentic_rag.repository import RunNotFoundError, RunRepository
 from agentic_rag.schemas import RunStatus
 
@@ -27,11 +30,12 @@ def format_sse(event: StreamEvent) -> str:
 async def stream_run_events(
     run_id: UUID,
     request: Request,
-    last_event_id: str | None = Header(default=None, alias="Last-Event-ID"),
+    user: Annotated[UserModel, Depends(require_user)],
+    last_event_id: Annotated[str | None, Header(alias="Last-Event-ID")] = None,
 ) -> StreamingResponse:
     async with request.app.state.database.session() as session:
         try:
-            await RunRepository(session).get(run_id)
+            await RunRepository(session).get_for_owner(run_id, user.id)
         except RunNotFoundError as exc:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Run not found"
@@ -56,16 +60,29 @@ async def stream_run_events(
 
 
 @router.post("/{run_id}/cancel")
-async def cancel_run(run_id: UUID, request: Request) -> dict[str, str]:
+async def cancel_run(
+    run_id: UUID,
+    request: Request,
+    user: Annotated[UserModel, Depends(require_user)],
+) -> dict[str, str]:
     async with request.app.state.database.session() as session:
         repository = RunRepository(session)
         try:
-            run = await repository.get(run_id)
+            run = await repository.get_for_owner(run_id, user.id)
         except RunNotFoundError as exc:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Run not found"
             ) from exc
         await repository.cancel(run)
+        await AuditRepository(session).record(
+            "run.cancel",
+            "success",
+            actor_user_id=user.id,
+            target_type="run",
+            target_id=str(run_id),
+            request_id=request.state.request_id,
+            fingerprint=request_fingerprint(request),
+        )
         await session.commit()
     await request.app.state.broker.cancel(run_id)
     await request.app.state.broker.publish(

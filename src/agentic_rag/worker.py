@@ -32,8 +32,11 @@ async def process_run(run_id: UUID, database: Database, broker: RunBroker) -> No
         async with database.session() as session:
             repository = RunRepository(session)
             run = await repository.get(run_id)
+            if not await repository.claim_queued(run_id):
+                LOGGER.info("Ignoring run %s in state %s", run_id, run.status)
+                await session.rollback()
+                return
             input_message = await repository.get_input_message(run)
-            await repository.mark_running(run)
             await session.commit()
 
         await broker.publish(run_id, "run.status", {"stage": "processing"})

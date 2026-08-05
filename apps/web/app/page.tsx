@@ -1,5 +1,5 @@
-import { ChatShell } from "@/components/chat-shell";
+import { AppGate } from "@/components/app-gate";
 
 export default function HomePage() {
-  return <ChatShell />;
+  return <AppGate />;
 }

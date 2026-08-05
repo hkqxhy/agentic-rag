@@ -16,7 +16,7 @@ from agentic_rag.database import Database
 from agentic_rag.observability import configure_logging, configure_tracing
 from agentic_rag.settings import Settings, get_settings
 
-from .routes import conversations, health, runs
+from .routes import auth, conversations, health, runs
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -46,13 +46,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_origins=app_settings.allowed_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "Last-Event-ID", "X-Request-ID"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "Idempotency-Key",
+            "Last-Event-ID",
+            "X-Request-ID",
+        ],
         expose_headers=["X-Request-ID"],
     )
 
     @application.middleware("http")
     async def request_context(request: Request, call_next: RequestResponseEndpoint):
-        request_id = request.headers.get("X-Request-ID") or str(uuid4())
+        supplied_request_id = request.headers.get("X-Request-ID")
+        request_id = (
+            supplied_request_id
+            if supplied_request_id
+            and len(supplied_request_id) <= 64
+            and supplied_request_id.isascii()
+            else str(uuid4())
+        )
+        request.state.request_id = request_id
         started = time.perf_counter()
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
@@ -60,6 +74,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return response
 
     application.include_router(health.router)
+    application.include_router(auth.router, prefix="/api/v1")
     application.include_router(conversations.router, prefix="/api/v1")
     application.include_router(runs.router, prefix="/api/v1")
     configure_tracing(application, app_settings)
