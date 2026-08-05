@@ -156,6 +156,22 @@ jobs:
       - name: Validate Compose model
         run: docker compose -f deploy/compose/docker-compose.yml config --quiet
 
+      - name: Validate staging Compose model
+        run: >-
+          docker compose
+          --env-file deploy/env/staging.env.example
+          -f deploy/compose/docker-compose.yml
+          -f deploy/compose/docker-compose.staging.yml
+          config --quiet
+
+      - name: Validate production Compose model
+        run: >-
+          docker compose
+          --env-file deploy/env/production.env.example
+          -f deploy/compose/docker-compose.yml
+          -f deploy/compose/docker-compose.prod.yml
+          config --quiet
+
       - name: Validate k6 load-test contract
         run: >-
           docker run --rm

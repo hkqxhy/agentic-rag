@@ -1,5 +1,7 @@
 # 阿里云 ECS 部署手册
 
+> 本文描述有域名和备案条件的正式 HTTPS 部署。华东 1（杭州）免费试用实例的受限 IP 验收流程见 [`ECS_STAGING_DEPLOYMENT.md`](ECS_STAGING_DEPLOYMENT.md)。
+
 ## 部署时点
 
 Phase 1 代码先在本地静态检查和 GitHub CI 中关闭账号、资源隔离、幂等、限流、迁移、前端构建与 Compose 门禁，再部署到 ECS。这样服务器承担的是验收、压测与演示环境，而不是在线调试匿名接口。

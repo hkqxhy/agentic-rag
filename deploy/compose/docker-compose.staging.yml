@@ -1,0 +1,42 @@
+name: agentic-rag
+
+services:
+  migrate:
+    environment: &staging-backend-environment
+      AGENTIC_RAG_ENVIRONMENT: staging
+      AGENTIC_RAG_DATABASE_URL: postgresql+asyncpg://agentic_rag:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/agentic_rag
+      AGENTIC_RAG_REDIS_URL: redis://redis:6379/0
+      AGENTIC_RAG_CORS_ORIGINS: ${STAGING_ORIGIN:?set STAGING_ORIGIN}
+      AGENTIC_RAG_SESSION_COOKIE_SECURE: "false"
+      AGENTIC_RAG_AUDIT_HASH_KEY: ${AGENTIC_RAG_AUDIT_HASH_KEY:?set AGENTIC_RAG_AUDIT_HASH_KEY}
+      AGENTIC_RAG_TRUST_PROXY_HEADERS: "true"
+      AGENTIC_RAG_QUESTION_RATE_LIMIT: ${QUESTION_RATE_LIMIT:-10}
+      AGENTIC_RAG_QUESTION_RATE_WINDOW_SECONDS: ${QUESTION_RATE_WINDOW_SECONDS:-60}
+      AGENTIC_RAG_IP_QUESTION_RATE_LIMIT: ${IP_QUESTION_RATE_LIMIT:-120}
+      AGENTIC_RAG_AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT:-60}
+      AGENTIC_RAG_AUTH_IDENTITY_RATE_LIMIT: ${AUTH_IDENTITY_RATE_LIMIT:-10}
+      AGENTIC_RAG_AUTH_RATE_WINDOW_SECONDS: ${AUTH_RATE_WINDOW_SECONDS:-300}
+
+  api:
+    environment: *staging-backend-environment
+
+  worker:
+    environment: *staging-backend-environment
+
+  web:
+    build:
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ""
+
+  caddy:
+    image: caddy:2.10-alpine
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
+    ports:
+      - "80:80"
+    volumes:
+      - ../caddy/Caddyfile.staging:/etc/caddy/Caddyfile:ro
+    restart: unless-stopped

@@ -1,0 +1,23 @@
+:80 {
+	encode zstd gzip
+
+	@backend path /api/* /health/* /openapi.json /docs*
+	reverse_proxy @backend api:8000 {
+		flush_interval -1
+	}
+
+	reverse_proxy web:3000
+
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

@@ -1,7 +1,7 @@
 # Phase 1 实施记录
 
 > 日期：2026-08-05
-> 状态：第二批公网边界已实现，等待远端 CI 与 ECS 验收后关闭
+> 状态：代码与远端 CI 门禁已通过，等待杭州 ECS 预生产验收、恢复演练与压测后关闭
 
 ## 1. 本轮目标
 
@@ -65,8 +65,8 @@ Agent、RAG 和千问调用仍未接入，Worker 继续返回明确标记的工�
 
 ## 4. 下一批 Phase 1 任务
 
-1. 通过 GitHub CI 的后端、集成、前端和 Compose 全部门禁；
-2. 在 ECS 上执行首次 TLS 部署和浏览器验收；
+1. ~~通过 GitHub CI 的后端、集成、前端和 Compose 全部门禁；~~ 已于 2026-08-05 通过；
+2. 按 [`ECS_STAGING_DEPLOYMENT.md`](ECS_STAGING_DEPLOYMENT.md) 在杭州免费 ECS 上执行受限 IP 预生产部署和浏览器验收；正式 TLS 验收留待具备域名与合规部署环境后执行；
 3. 验证双 API/双 Worker、Worker 中断恢复和数据库备份恢复；
 4. 执行约 10–20 在线用户的 k6 smoke/soak，并保存延迟、错误率和资源曲线；
 5. 冻结 Phase 1 演示版本，进入 Agent 编排与 Hybrid RAG 的 Phase 2。
