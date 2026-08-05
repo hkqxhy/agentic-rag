@@ -159,6 +159,9 @@ jobs:
       - name: Validate Compose model
         run: docker compose -f deploy/compose/docker-compose.yml config --quiet
 
+      - name: Validate ECS scripts
+        run: bash -n deploy/ecs/*.sh
+
       - name: Validate staging Compose model
         run: >-
           docker compose

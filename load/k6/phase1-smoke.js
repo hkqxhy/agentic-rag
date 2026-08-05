@@ -4,9 +4,11 @@ import { Trend } from "k6/metrics";
 
 const baseUrl = (__ENV.BASE_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
 const runId = __ENV.RUN_ID || `${Date.now()}`;
+const thinkTimeSeconds = Number(__ENV.THINK_TIME || 6);
 const endToEndLatency = new Trend("agentic_rag_e2e_latency", true);
 
 export const options = {
+  noCookiesReset: true,
   scenarios: {
     phase1_smoke: {
       executor: "constant-vus",
@@ -24,12 +26,13 @@ export const options = {
 };
 
 let registered = false;
+let conversationId = null;
 
 function jsonHeaders(extra = {}) {
   return {
     headers: {
       "Content-Type": "application/json",
-      "User-Agent": `agentic-rag-k6/${__VU}`,
+      "User-Agent": `agentic-rag-k6/${runId}/${__VU}`,
       ...extra,
     },
   };
@@ -50,26 +53,33 @@ function ensureAccount() {
   if (!check(response, { "account registered": (item) => item.status === 201 })) {
     fail(`registration failed with status ${response.status}`);
   }
+  const conversation = http.post(
+    `${baseUrl}/api/v1/conversations`,
+    JSON.stringify({ title: "Phase 1 压测" }),
+    jsonHeaders(),
+  );
+  if (!check(conversation, { "conversation created": (item) => item.status === 201 })) {
+    fail(`conversation creation failed with status ${conversation.status}`);
+  }
+  conversationId = conversation.json("id");
   registered = true;
 }
 
 export default function () {
   ensureAccount();
   const startedAt = Date.now();
-  const conversation = http.post(
-    `${baseUrl}/api/v1/conversations`,
-    JSON.stringify({ title: "Phase 1 压测" }),
-    jsonHeaders(),
-  );
-  if (!check(conversation, { "conversation created": (item) => item.status === 201 })) return;
-
-  const conversationId = conversation.json("id");
   const accepted = http.post(
     `${baseUrl}/api/v1/conversations/${conversationId}/messages`,
     JSON.stringify({ content: "新生报到需要准备哪些材料？" }),
     jsonHeaders({ "Idempotency-Key": `${runId}-${__VU}-${__ITER}` }),
   );
-  if (!check(accepted, { "run accepted": (item) => item.status === 202 })) return;
+  if (!check(accepted, { "run accepted": (item) => item.status === 202 })) {
+    console.error(
+      `run acceptance failed: status=${accepted.status} body=${String(accepted.body).slice(0, 300)}`,
+    );
+    sleep(thinkTimeSeconds);
+    return;
+  }
 
   let completed = false;
   for (let attempt = 0; attempt < 32; attempt += 1) {
@@ -88,5 +98,7 @@ export default function () {
 
   check(completed, { "assistant response persisted": (value) => value === true });
   if (completed) endToEndLatency.add(Date.now() - startedAt);
-  sleep(1);
+  // Keep each simulated student below the configured 10 questions/minute
+  // while still maintaining the requested number of concurrent sessions.
+  sleep(thinkTimeSeconds);
 }
