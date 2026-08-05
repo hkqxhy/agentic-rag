@@ -21,7 +21,7 @@ docker compose \
   --env-file "$env_file" \
   -f "$base_compose" \
   -f "$prod_compose" \
-  up --build --detach --remove-orphans
+  up --build --detach --remove-orphans --wait --wait-timeout 180
 
 docker compose \
   --env-file "$env_file" \

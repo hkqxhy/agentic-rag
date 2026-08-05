@@ -4,6 +4,8 @@ import asyncio
 import logging
 from uuid import UUID
 
+from redis.exceptions import RedisError
+
 from .broker import RunBroker
 from .database import Database
 from .repository import RunNotFoundError, RunRepository
@@ -73,6 +75,20 @@ async def process_run(run_id: UUID, database: Database, broker: RunBroker) -> No
         )
 
 
+async def dequeue_run(
+    broker: RunBroker,
+    *,
+    timeout_seconds: int = 5,
+    retry_delay_seconds: float = 1,
+) -> UUID | None:
+    try:
+        return await broker.dequeue(timeout_seconds=timeout_seconds)
+    except (RedisError, OSError):
+        LOGGER.exception("Redis queue read failed; retrying")
+        await asyncio.sleep(retry_delay_seconds)
+        return None
+
+
 async def worker_loop(settings: Settings | None = None) -> None:
     app_settings = settings or get_settings()
     logging.basicConfig(
@@ -84,7 +100,7 @@ async def worker_loop(settings: Settings | None = None) -> None:
     LOGGER.info("Worker is ready")
     try:
         while True:
-            run_id = await broker.dequeue(timeout_seconds=5)
+            run_id = await dequeue_run(broker)
             if run_id is None:
                 continue
             await process_run(run_id, database, broker)

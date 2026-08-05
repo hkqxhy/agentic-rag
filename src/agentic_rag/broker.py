@@ -40,7 +40,17 @@ return {current, ttl}
 
     @classmethod
     def from_settings(cls, settings: Settings) -> RunBroker:
-        client = Redis.from_url(settings.redis_url, decode_responses=True)
+        # redis-py 8 defaults socket_timeout to 5 seconds. This client also runs
+        # BLPOP and XREAD BLOCK commands whose server-side waits are 5 and 15
+        # seconds, so the default races the blocking command and can terminate
+        # an otherwise healthy worker while the queue is idle.
+        client = Redis.from_url(
+            settings.redis_url,
+            decode_responses=True,
+            socket_timeout=None,
+            socket_connect_timeout=5,
+            health_check_interval=30,
+        )
         return cls(client, settings)
 
     def stream_key(self, run_id: UUID) -> str:

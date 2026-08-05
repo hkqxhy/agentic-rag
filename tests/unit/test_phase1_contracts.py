@@ -19,11 +19,11 @@ from agentic_rag.security import (
     verify_password,
 )
 from agentic_rag.settings import Settings
-from agentic_rag.worker import build_phase1_reply, chunk_text
+from agentic_rag.worker import build_phase1_reply, chunk_text, dequeue_run
 
 
 def test_settings_parse_cors_origins() -> None:
-    settings = Settings(
+    settings = Settings(  # type: ignore[call-arg]
         _env_file=None,
         cors_origins="http://localhost:3000, https://demo.example.com",
     )
@@ -36,9 +36,9 @@ def test_settings_parse_cors_origins() -> None:
 
 def test_production_requires_secure_cookie_and_audit_key() -> None:
     with pytest.raises(ValidationError):
-        Settings(_env_file=None, environment="production")
+        Settings(_env_file=None, environment="production")  # type: ignore[call-arg]
 
-    settings = Settings(
+    settings = Settings(  # type: ignore[call-arg]
         _env_file=None,
         environment="production",
         session_cookie_secure=True,
@@ -60,7 +60,10 @@ async def test_passwords_are_argon2_hashed_and_sessions_are_opaque() -> None:
 
 
 def test_rate_limit_identifier_does_not_expose_account_name() -> None:
-    settings = Settings(_env_file=None, audit_hash_key="unit-test-secret")
+    settings = Settings(  # type: ignore[call-arg]
+        _env_file=None,
+        audit_hash_key="unit-test-secret",
+    )
     first = private_identifier("Student_01", settings)
     second = private_identifier(" student_01 ", settings)
 
@@ -79,13 +82,39 @@ async def test_rate_limit_result_is_derived_from_atomic_script() -> None:
             assert window == 60
             return [4, 51]
 
-    settings = Settings(_env_file=None)
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
     broker = RunBroker(FakeRedis(), settings)  # type: ignore[arg-type]
     result = await broker.consume_rate_limit("question:user:test", 3, 60)
 
     assert result.allowed is False
     assert result.remaining == 0
     assert result.retry_after_seconds == 51
+
+
+def test_broker_disables_socket_timeout_for_blocking_commands() -> None:
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+    broker = RunBroker.from_settings(settings)
+
+    connection_options = broker.redis.connection_pool.connection_kwargs
+    assert connection_options["socket_timeout"] is None
+    assert connection_options["socket_connect_timeout"] == 5
+    assert connection_options["health_check_interval"] == 30
+
+
+@pytest.mark.asyncio
+async def test_worker_recovers_from_transient_redis_failure() -> None:
+    class FailingBroker:
+        async def dequeue(self, timeout_seconds: int):
+            assert timeout_seconds == 5
+            raise ConnectionError("redis temporarily unavailable")
+
+    result = await dequeue_run(
+        FailingBroker(),  # type: ignore[arg-type]
+        timeout_seconds=5,
+        retry_delay_seconds=0,
+    )
+
+    assert result is None
 
 
 def test_message_rejects_blank_content() -> None:
@@ -124,7 +153,12 @@ def test_phase1_stub_is_explicit_and_streamable() -> None:
 
 @pytest.mark.asyncio
 async def test_live_health_does_not_require_dependencies() -> None:
-    app = create_app(Settings(_env_file=None, app_name="Agentic RAG test"))
+    app = create_app(
+        Settings(  # type: ignore[call-arg]
+            _env_file=None,
+            app_name="Agentic RAG test",
+        )
+    )
 
     async with app.router.lifespan_context(app), AsyncClient(
         transport=ASGITransport(app=app),
@@ -146,7 +180,12 @@ async def test_live_health_does_not_require_dependencies() -> None:
 
 @pytest.mark.asyncio
 async def test_untrusted_request_id_is_bounded_before_audit_use() -> None:
-    app = create_app(Settings(_env_file=None, app_name="Agentic RAG test"))
+    app = create_app(
+        Settings(  # type: ignore[call-arg]
+            _env_file=None,
+            app_name="Agentic RAG test",
+        )
+    )
 
     async with app.router.lifespan_context(app), AsyncClient(
         transport=ASGITransport(app=app),

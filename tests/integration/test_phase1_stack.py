@@ -17,8 +17,20 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.mark.asyncio
+async def test_idle_queue_wait_outlives_redis_py_default_timeout() -> None:
+    settings = Settings(  # type: ignore[call-arg]
+        _env_file=None,
+        run_queue_key=f"agentic_rag:test:idle:{uuid4()}",
+    )
+    app = create_app(settings)
+
+    async with app.router.lifespan_context(app):
+        assert await app.state.broker.dequeue(timeout_seconds=6) is None
+
+
+@pytest.mark.asyncio
 async def test_authenticated_owned_idempotent_stream_round_trip() -> None:
-    settings = Settings(
+    settings = Settings(  # type: ignore[call-arg]
         _env_file=None,
         auth_rate_limit=100,
         question_rate_limit=100,

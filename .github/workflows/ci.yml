@@ -61,6 +61,9 @@ jobs:
       - name: Compile Python sources
         run: python -m compileall -q src tests agentic_rag_v1_server.py
 
+      - name: Type-check Phase 1 backend
+        run: mypy src/agentic_rag tests/unit tests/integration tests/e2e
+
       - name: Run unit and V1 regression tests
         run: pytest -q tests/unit tests/test_agentic_rag_v1.py
 
