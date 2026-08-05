@@ -164,6 +164,17 @@ jobs:
           -f deploy/compose/docker-compose.staging.yml
           config --quiet
 
+      - name: Validate staging base image references
+        shell: bash
+        run: |
+          while IFS='=' read -r name image; do
+            case "$name" in
+              POSTGRES_IMAGE|REDIS_IMAGE|CADDY_IMAGE|PYTHON_BASE_IMAGE|NODE_BASE_IMAGE)
+                docker buildx imagetools inspect "$image" >/dev/null
+                ;;
+            esac
+          done < deploy/env/staging.env.example
+
       - name: Validate production Compose model
         run: >-
           docker compose

@@ -47,6 +47,8 @@ openssl rand -hex 32
 
 真实的 `staging.env` 已被 Git 忽略，不得提交。
 
+杭州 ECS 访问 Docker Hub 不稳定，预生产模板把 PostgreSQL、Redis、Caddy、Python 和 Node.js 基础镜像显式指向 Amazon ECR Public。Compose 与 Dockerfile 都保留可配置镜像参数，本地开发和具备正常 Docker Hub 网络的环境仍使用原始官方镜像名。
+
 ## 4. 启动
 
 ```bash

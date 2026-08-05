@@ -26,10 +26,11 @@ services:
   web:
     build:
       args:
+        NODE_BASE_IMAGE: ${NODE_BASE_IMAGE:-node:22-alpine}
         NEXT_PUBLIC_API_BASE_URL: ""
 
   caddy:
-    image: caddy:2.10-alpine
+    image: ${CADDY_IMAGE:-caddy:2.10-alpine}
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS}
     depends_on:

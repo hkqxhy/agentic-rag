@@ -1,7 +1,16 @@
 name: agentic-rag
 
 services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-public.ecr.aws/docker/library/postgres:17-alpine}
+
+  redis:
+    image: ${REDIS_IMAGE:-public.ecr.aws/docker/library/redis:8-alpine}
+
   migrate:
+    build:
+      args: &staging-api-build-args
+        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-public.ecr.aws/docker/library/python:3.12-slim}
     environment: &staging-backend-environment
       AGENTIC_RAG_ENVIRONMENT: staging
       AGENTIC_RAG_DATABASE_URL: postgresql+asyncpg://agentic_rag:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/agentic_rag
@@ -18,18 +27,23 @@ services:
       AGENTIC_RAG_AUTH_RATE_WINDOW_SECONDS: ${AUTH_RATE_WINDOW_SECONDS:-300}
 
   api:
+    build:
+      args: *staging-api-build-args
     environment: *staging-backend-environment
 
   worker:
+    build:
+      args: *staging-api-build-args
     environment: *staging-backend-environment
 
   web:
     build:
       args:
+        NODE_BASE_IMAGE: ${NODE_BASE_IMAGE:-public.ecr.aws/docker/library/node:22-alpine}
         NEXT_PUBLIC_API_BASE_URL: ""
 
   caddy:
-    image: caddy:2.10-alpine
+    image: ${CADDY_IMAGE:-public.ecr.aws/docker/library/caddy:2.10-alpine}
     depends_on:
       api:
         condition: service_healthy

@@ -1,11 +1,12 @@
-FROM node:22-alpine AS deps
+ARG NODE_BASE_IMAGE=node:22-alpine
+FROM ${NODE_BASE_IMAGE} AS deps
 RUN corepack enable
 WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json ./apps/web/package.json
 RUN pnpm install --frozen-lockfile --filter @agentic-rag/web...
 
-FROM node:22-alpine AS builder
+FROM ${NODE_BASE_IMAGE} AS builder
 RUN corepack enable
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -18,7 +19,7 @@ ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
 WORKDIR /app/apps/web
 RUN pnpm build
 
-FROM node:22-alpine AS runtime
+FROM ${NODE_BASE_IMAGE} AS runtime
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     HOSTNAME=0.0.0.0 \
