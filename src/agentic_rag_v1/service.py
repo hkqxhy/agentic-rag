@@ -314,12 +314,13 @@ class NewStudentAssistant:
             return None
         messages = self._llm_messages(question, rewritten, hits, sources, diagnostics)
         answer = self.llm.chat(messages)
-        if answer and _unsupported_urls(answer, hits):
-            self.llm.last_error = "unsupported_url"
-            return None
-        if answer and _unsupported_channels(answer, hits):
-            self.llm.last_error = "unsupported_channel"
-            return None
+        if answer:
+            answer, filter_reason = _filter_unsupported_suffix(answer, hits)
+            if filter_reason:
+                self.llm.last_filter = filter_reason
+            if answer is None:
+                self.llm.last_error = filter_reason
+                return None
         if answer and _has_citation(answer):
             return answer
         if answer:
@@ -436,6 +437,8 @@ class NewStudentAssistant:
         }
         if mode == "extractive" and self.llm.enabled and self.llm.last_error:
             diagnostics["fallback_reason"] = self.llm.last_error
+        if mode == "llm" and self.llm.last_filter:
+            diagnostics["safety_filter"] = self.llm.last_filter
         return diagnostics
 
     def _blend_confidence(
@@ -549,6 +552,26 @@ def _unsupported_channels(answer: str, hits: list[SearchHit]) -> list[str]:
             if term in answer and term not in evidence
         }
     )
+
+
+def _filter_unsupported_suffix(
+    answer: str,
+    hits: list[SearchHit],
+) -> tuple[str | None, str]:
+    lines = answer.splitlines()
+    for index, line in enumerate(lines):
+        if _unsupported_urls(line, hits):
+            return _safe_prefix(lines, index), "unsupported_url"
+        if _unsupported_channels(line, hits):
+            return _safe_prefix(lines, index), "unsupported_channel"
+    return answer, ""
+
+
+def _safe_prefix(lines: list[str], stop: int) -> str | None:
+    candidate = "\n".join(lines[:stop]).strip()
+    while candidate.endswith(("温馨提示：", "提醒：", "建议：")):
+        candidate = candidate.rsplit("\n", 1)[0].strip() if "\n" in candidate else ""
+    return candidate if candidate and _has_citation(candidate) else None
 
 
 def _stream_text(text: str, chunk_size: int = 18) -> Iterator[dict[str, str]]:

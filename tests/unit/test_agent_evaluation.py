@@ -10,7 +10,11 @@ from agentic_rag.agent.evaluate import run_effect_evaluation
 from agentic_rag_v1.config import RAGConfig
 from agentic_rag_v1.llm import OpenAICompatibleLLM
 from agentic_rag_v1.schema import KnowledgeChunk, SearchHit
-from agentic_rag_v1.service import _unsupported_channels, _unsupported_urls
+from agentic_rag_v1.service import (
+    _filter_unsupported_suffix,
+    _unsupported_channels,
+    _unsupported_urls,
+)
 
 
 def test_fixture_effect_suite_passes_without_model_cost(tmp_path: Path) -> None:
@@ -98,3 +102,24 @@ def test_unsupported_official_channels_are_detected() -> None:
         "本科招生网",
         "迎新系统",
     ]
+
+
+def test_unsupported_recommendation_suffix_is_safely_truncated() -> None:
+    hit = SearchHit(
+        chunk=KnowledgeChunk(
+            id="source-1",
+            content="这是测试资料，不代表真实通知。",
+            source="fixture.md",
+        ),
+        score=1.0,
+        rank=1,
+    )
+    answer = (
+        "这只是测试资料，不代表真实通知 [S1]。\n\n"
+        "温馨提示：\n请访问本科招生网了解详情。"
+    )
+
+    filtered, reason = _filter_unsupported_suffix(answer, [hit])
+
+    assert filtered == "这只是测试资料，不代表真实通知 [S1]。"
+    assert reason == "unsupported_channel"

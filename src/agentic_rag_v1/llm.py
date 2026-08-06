@@ -18,6 +18,7 @@ class OpenAICompatibleLLM:
     timeout: float = 30.0
     temperature: float = 0.2
     last_error: str = field(default="", init=False, repr=False)
+    last_filter: str = field(default="", init=False, repr=False)
 
     @property
     def enabled(self) -> bool:
@@ -27,6 +28,7 @@ class OpenAICompatibleLLM:
         if not self.enabled:
             return None
         self.last_error = ""
+        self.last_filter = ""
         url = self._chat_url()
         payload = {
             "model": self.model,
@@ -69,6 +71,7 @@ class OpenAICompatibleLLM:
         if not self.enabled:
             return
         self.last_error = ""
+        self.last_filter = ""
         url = self._chat_url()
         payload = {
             "model": self.model,

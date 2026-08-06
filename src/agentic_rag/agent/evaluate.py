@@ -89,6 +89,7 @@ def run_effect_evaluation(
                 "actual_grounded": outcome.grounded,
                 "generation_mode": generation_mode,
                 "fallback_reason": generation.get("fallback_reason", ""),
+                "safety_filter": generation.get("safety_filter", ""),
                 "latency_ms": round(latency_ms, 2),
                 "source_count": len(outcome.sources),
                 "has_citations": has_citations,
@@ -103,6 +104,7 @@ def run_effect_evaluation(
     latencies = [float(item["latency_ms"]) for item in results]
     llm_cases = [item for item in results if item["expect_llm"]]
     llm_successes = sum(item["generation_mode"] == "llm" for item in llm_cases)
+    filtered_responses = sum(bool(item["safety_filter"]) for item in llm_cases)
     llm_latencies = [float(item["latency_ms"]) for item in llm_cases]
     return {
         "passed": all(item["passed"] for item in results),
@@ -116,6 +118,7 @@ def run_effect_evaluation(
             "url_grounding_accuracy": _mean_check(results, "url_grounding"),
             "channel_grounding_accuracy": _mean_check(results, "channel_grounding"),
             "llm_success_rate": llm_successes / max(1, len(llm_cases)),
+            "safety_filtered_rate": filtered_responses / max(1, len(llm_cases)),
             "latency_p50_ms": round(statistics.median(latencies), 2),
             "latency_p95_ms": round(_percentile(latencies, 0.95), 2),
             "llm_latency_p50_ms": round(statistics.median(llm_latencies), 2),

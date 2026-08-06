@@ -36,7 +36,7 @@ sudo docker compose \
   exec -T worker python -m agentic_rag.agent.evaluate --require-llm
 ```
 
-测试覆盖 Agent 路由、grounded 判定、引用、无关问题拒答、URL/高风险办事渠道证据一致性、千问实际调用成功率以及总体/LLM p50、p95 延迟。只有 `generation_mode` 为 `llm` 才算千问调用成功；调用失败或生成知识片段中不存在的 URL、网站、系统、公众号、部门与咨询渠道时会触发抽取式降级，不会被误报为模型成功。
+测试覆盖 Agent 路由、grounded 判定、引用、无关问题拒答、URL/高风险办事渠道证据一致性、千问实际调用成功率以及总体/LLM p50、p95 延迟。只有 `generation_mode` 为 `llm` 才算千问调用成功。模型在已引用核心答案之后追加无证据渠道时，系统会截断越界后缀并记录 `safety_filter`；越界内容混入核心答案时才触发抽取式降级。
 
 ## 下一切片
 
