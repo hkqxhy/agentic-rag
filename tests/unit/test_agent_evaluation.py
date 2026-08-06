@@ -10,7 +10,7 @@ from agentic_rag.agent.evaluate import run_effect_evaluation
 from agentic_rag_v1.config import RAGConfig
 from agentic_rag_v1.llm import OpenAICompatibleLLM
 from agentic_rag_v1.schema import KnowledgeChunk, SearchHit
-from agentic_rag_v1.service import _unsupported_urls
+from agentic_rag_v1.service import _unsupported_channels, _unsupported_urls
 
 
 def test_fixture_effect_suite_passes_without_model_cost(tmp_path: Path) -> None:
@@ -80,4 +80,21 @@ def test_unsupported_model_urls_are_detected() -> None:
     assert _unsupported_urls("请访问 https://example.edu.cn/notice [S1]", [hit]) == []
     assert _unsupported_urls("请访问 https://invented.example/ [S1]", [hit]) == [
         "https://invented.example/"
+    ]
+
+
+def test_unsupported_official_channels_are_detected() -> None:
+    hit = SearchHit(
+        chunk=KnowledgeChunk(
+            id="source-1",
+            content="资料不足时请以当年官方通知为准。",
+            source="fixture.md",
+        ),
+        score=1.0,
+        rank=1,
+    )
+
+    assert _unsupported_channels("请查看本科招生网或迎新系统 [S1]", [hit]) == [
+        "本科招生网",
+        "迎新系统",
     ]

@@ -46,6 +46,23 @@ STALE_PATTERNS = (
     re.compile(r"\d{1,2}\s*月\s*\d{1,2}\s*日"),
 )
 
+HIGH_RISK_CHANNEL_TERMS = (
+    "本科招生网",
+    "招生官网",
+    "学校官网",
+    "迎新系统",
+    "信息门户",
+    "网上办事大厅",
+    "微信公众号",
+    "公众号",
+    "招生办公室",
+    "教务处",
+    "学生工作处",
+    "辅导员",
+    "服务热线",
+    "官方邮箱",
+)
+
 
 class NewStudentAssistant:
     def __init__(self, config: RAGConfig | None = None):
@@ -300,6 +317,9 @@ class NewStudentAssistant:
         if answer and _unsupported_urls(answer, hits):
             self.llm.last_error = "unsupported_url"
             return None
+        if answer and _unsupported_channels(answer, hits):
+            self.llm.last_error = "unsupported_channel"
+            return None
         if answer and _has_citation(answer):
             return answer
         if answer:
@@ -330,6 +350,8 @@ class NewStudentAssistant:
                     "例如 [S1]。如果资料不足，说明无法回答并给出下一步咨询建议。"
                     "涉及年份、金额、报到时间、系统入口时要提醒以当年官方通知为准。"
                     "不得输出资料中没有原样出现的网址、邮箱、电话、办理入口或政策结论。"
+                    "不得自行推荐资料中没有原样出现的网站、系统、公众号、部门或咨询渠道；"
+                    "资料没有提供下一步渠道时，只说明资料未提供，不要用常识补充。"
                     "不要依靠常识补全学校信息，也不要把建议写成已经确认的事实。"
                     "回答要清晰、温和、面向第一次接触大学流程的新生。"
                 ),
@@ -389,7 +411,7 @@ class NewStudentAssistant:
         answer = (
             "资料库里没有找到足够可靠的依据来回答这个问题。"
             f"{suggestions}"
-            "如果这是和当年报到、费用、时间节点相关的问题，建议以学校最新官方通知或辅导员答复为准。"
+            "如果这是和当年报到、费用、时间节点相关的问题，建议以学校最新官方通知为准。"
         )
         return AnswerResult(
             question=question,
@@ -516,6 +538,17 @@ def _unsupported_urls(answer: str, hits: list[SearchHit]) -> list[str]:
         for url in extract_urls(answer)
         if url.rstrip("/") not in evidence_urls
     ]
+
+
+def _unsupported_channels(answer: str, hits: list[SearchHit]) -> list[str]:
+    evidence = "\n".join(hit.chunk.content for hit in hits)
+    return sorted(
+        {
+            term
+            for term in HIGH_RISK_CHANNEL_TERMS
+            if term in answer and term not in evidence
+        }
+    )
 
 
 def _stream_text(text: str, chunk_size: int = 18) -> Iterator[dict[str, str]]:
