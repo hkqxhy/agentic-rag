@@ -53,6 +53,8 @@ docker compose -f deploy/compose/docker-compose.yml down
 
 Phase 1 的实测证据见 [Phase 1 验收报告](docs/PHASE1_ACCEPTANCE_REPORT.md)。Phase 2 的真实千问 2/5 并发结果、20 用户目标门禁、100 用户突发上限和对外表述边界见 [Phase 2 容量与效果基线](docs/PHASE2_CAPACITY_BASELINE.md)。
 
+准备项目面试时，可按 [项目实现细节与面试追问手册](docs/PROJECT_INTERVIEW_GUIDE.md) 阅读完整请求链路、Agent/RAG算法、数据一致性、安全、部署、测试、局限和参考回答。
+
 ECS 公网部署的域名、Secret、安全组和启动步骤见 [ECS 部署手册](docs/ECS_DEPLOYMENT.md)。
 
 ## 本地开发
