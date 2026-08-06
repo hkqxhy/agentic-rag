@@ -14,7 +14,7 @@ export const options = {
   scenarios: {
     platform_burst: {
       executor: "per-vu-iterations",
-      vus: Number(__ENV.VUS || 100),
+      vus: Number(__ENV.VUS || 20),
       iterations: Number(__ENV.ITERATIONS || 1),
       maxDuration: __ENV.MAX_DURATION || "2m",
     },

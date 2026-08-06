@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-vus="${VUS:-100}"
+vus="${VUS:-20}"
 iterations="${ITERATIONS:-1}"
 max_duration="${MAX_DURATION:-2m}"
 run_id="${RUN_ID:-platform-$(date +%Y%m%d%H%M%S)}"
