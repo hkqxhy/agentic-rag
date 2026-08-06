@@ -7,7 +7,7 @@ iterations="${ITERATIONS:-2}"
 e2e_p95_ms="${E2E_P95_MS:-30000}"
 max_duration="${MAX_DURATION:-2m}"
 run_id="${RUN_ID:-phase2-$(date +%Y%m%d%H%M%S)}"
-k6_image="${K6_IMAGE:-grafana/k6:2.0.0}"
+k6_image="${K6_IMAGE:-grafana/k6:latest}"
 
 docker run --rm --network host \
   -v "$repo_root/load/k6:/scripts:ro" \
