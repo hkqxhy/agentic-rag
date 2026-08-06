@@ -50,7 +50,7 @@ sudo VUS=5 ITERATIONS=1 E2E_P95_MS=30000 \
 
 两档合计只调用九次千问，用于观察单 Worker 排队下的模型成功率、grounded 率、保护过滤率和端到端 p95。它是低成本容量探针，不替代更长时间的稳定性压测。
 
-ECS 默认使用 Grafana 官方推荐的 `grafana/k6:latest` 镜像；可通过 `K6_IMAGE` 覆盖。GitHub CI 仍使用固定版本校验脚本，以保持门禁可重复。
+ECS 会优先使用宿主机已安装的 `k6`，未找到时才回退到 Grafana 官方 `grafana/k6:latest` 镜像；可通过 `K6_IMAGE` 覆盖 Docker 回退镜像。中国大陆 ECS 若配置了不完整的 Docker Hub 镜像加速器，建议根据 Grafana 官方文档通过 APT 安装 k6，避免第三方镜像同步延迟。GitHub CI 仍使用固定版本校验脚本，以保持门禁可重复。
 
 ## 下一切片
 
