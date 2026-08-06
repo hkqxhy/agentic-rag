@@ -4,7 +4,7 @@ import json
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 
@@ -17,6 +17,7 @@ class OpenAICompatibleLLM:
     model: str = "qwen-plus"
     timeout: float = 30.0
     temperature: float = 0.2
+    last_error: str = field(default="", init=False, repr=False)
 
     @property
     def enabled(self) -> bool:
@@ -25,6 +26,7 @@ class OpenAICompatibleLLM:
     def chat(self, messages: list[dict[str, str]], max_tokens: int = 900) -> str | None:
         if not self.enabled:
             return None
+        self.last_error = ""
         url = self._chat_url()
         payload = {
             "model": self.model,
@@ -45,9 +47,19 @@ class OpenAICompatibleLLM:
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 data = json.loads(response.read().decode("utf-8"))
-        except (OSError, urllib.error.URLError, json.JSONDecodeError):
+        except urllib.error.HTTPError as exc:
+            self.last_error = f"http_{exc.code}"
             return None
-        return _extract_content(data)
+        except (OSError, urllib.error.URLError):
+            self.last_error = "network_error"
+            return None
+        except json.JSONDecodeError:
+            self.last_error = "invalid_response"
+            return None
+        content = _extract_content(data)
+        if content is None:
+            self.last_error = "empty_response"
+        return content
 
     def stream_chat(
         self,
@@ -56,6 +68,7 @@ class OpenAICompatibleLLM:
     ) -> Iterator[str]:
         if not self.enabled:
             return
+        self.last_error = ""
         url = self._chat_url()
         payload = {
             "model": self.model,
@@ -73,6 +86,7 @@ class OpenAICompatibleLLM:
             },
             method="POST",
         )
+        yielded = False
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 for raw_line in response:
@@ -88,9 +102,16 @@ class OpenAICompatibleLLM:
                         continue
                     delta = _extract_delta(data)
                     if delta:
+                        yielded = True
                         yield delta
-        except (OSError, urllib.error.URLError):
+        except urllib.error.HTTPError as exc:
+            self.last_error = f"http_{exc.code}"
             return
+        except (OSError, urllib.error.URLError):
+            self.last_error = "network_error"
+            return
+        if not yielded:
+            self.last_error = "empty_response"
 
     def _chat_url(self) -> str:
         base = self.base_url.rstrip("/")

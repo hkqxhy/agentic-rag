@@ -219,6 +219,7 @@ class AgentRuntime:
                 source_count=len(result.sources),
                 confidence=round(result.confidence, 4),
                 corrective=bool(result.diagnostics.get("corrective")),
+                generation_mode=(result.diagnostics.get("generation") or {}).get("mode"),
             ),
         }
 

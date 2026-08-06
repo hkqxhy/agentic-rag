@@ -114,6 +114,7 @@ class NewStudentAssistant:
         warnings = self._warnings(hits)
 
         if self._should_clarify(hits, confidence, diagnostics):
+            diagnostics["generation"] = self._generation_diagnostics("clarification")
             result = self._insufficient_answer(
                 question,
                 rewritten,
@@ -132,6 +133,10 @@ class NewStudentAssistant:
         answer = self._llm_answer(question, rewritten, hits, sources, diagnostics)
         if answer is None:
             answer = self._extractive_answer(question, hits, sources)
+            generation_mode = "extractive"
+        else:
+            generation_mode = "llm"
+        diagnostics["generation"] = self._generation_diagnostics(generation_mode)
         if warnings:
             answer = f"{answer}\n\n提醒：{' '.join(warnings)}"
 
@@ -182,6 +187,7 @@ class NewStudentAssistant:
         warnings = self._warnings(hits)
 
         if self._should_clarify(hits, confidence, diagnostics):
+            diagnostics["generation"] = self._generation_diagnostics("clarification")
             result = self._insufficient_answer(
                 question,
                 rewritten,
@@ -209,8 +215,10 @@ class NewStudentAssistant:
 
         if not answer.strip():
             answer = self._extractive_answer(question, hits, sources)
+            generation_mode = "extractive"
             yield from _stream_text(answer)
         else:
+            generation_mode = "llm"
             if not _has_citation(answer):
                 suffix = f"\n\n依据：{', '.join(source['id'] for source in sources[:2])}"
                 answer += suffix
@@ -220,6 +228,8 @@ class NewStudentAssistant:
             warning_text = f"\n\n提醒：{' '.join(warnings)}"
             answer += warning_text
             yield from _stream_text(warning_text)
+
+        diagnostics["generation"] = self._generation_diagnostics(generation_mode)
 
         result = AnswerResult(
             question=question,
@@ -390,6 +400,16 @@ class NewStudentAssistant:
     def _retrieval_diagnostics(self) -> dict[str, Any]:
         diagnostics = getattr(self.retriever, "last_diagnostics", {})
         return dict(diagnostics) if isinstance(diagnostics, dict) else {}
+
+    def _generation_diagnostics(self, mode: str) -> dict[str, Any]:
+        diagnostics = {
+            "mode": mode,
+            "model": self.config.llm_model if self.llm.enabled else "none",
+            "llm_attempted": self.llm.enabled and mode != "clarification",
+        }
+        if mode == "extractive" and self.llm.enabled and self.llm.last_error:
+            diagnostics["fallback_reason"] = self.llm.last_error
+        return diagnostics
 
     def _blend_confidence(
         self,

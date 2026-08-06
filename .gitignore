@@ -48,6 +48,7 @@ Desktop.ini
 *.sqlite3
 .agentic_rag_v1_index/
 .agentic_rag_v1_eval_old_index/
+.agentic_rag_phase2_effect_index/
 reports/
 *.faiss
 *.pkl

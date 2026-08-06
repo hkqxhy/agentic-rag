@@ -26,6 +26,18 @@ AGENTIC_RAG_LLM_API_KEY=你的百炼API-Key
 
 不设置 URL 或 Key 时，系统仍会执行完整检索与证据核验，并使用抽取式回答，方便无模型成本地部署和回归测试。
 
+部署后可在 Worker 容器内执行真实模型效果冒烟测试：
+
+```bash
+sudo docker compose \
+  --env-file deploy/env/staging.env \
+  -f deploy/compose/docker-compose.yml \
+  -f deploy/compose/docker-compose.staging.yml \
+  exec -T worker python -m agentic_rag.agent.evaluate --require-llm
+```
+
+测试覆盖 Agent 路由、grounded 判定、引用、无关问题拒答、千问实际调用成功率以及 p50/p95 延迟。只有 `generation_mode` 为 `llm` 才算千问调用成功；调用失败后产生的抽取式降级不会被误报为模型成功。
+
 ## 下一切片
 
 1. 建立可版本化的知识摄取、预览、发布、回滚和增量索引任务；
