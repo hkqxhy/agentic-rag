@@ -38,6 +38,18 @@ sudo docker compose \
 
 测试覆盖 Agent 路由、grounded 判定、引用、无关问题拒答、URL/高风险办事渠道证据一致性、千问实际调用成功率以及总体/LLM p50、p95 延迟。只有 `generation_mode` 为 `llm` 才算千问调用成功。模型在已引用核心答案之后追加无证据渠道时，系统会截断越界后缀并记录 `safety_filter`；越界内容混入核心答案时才触发抽取式降级。
 
+fixture 门禁通过后，先执行小样本真实模型并发测试，避免直接用 Phase 1 的无模型吞吐结论外推：
+
+```bash
+sudo VUS=2 ITERATIONS=2 E2E_P95_MS=20000 \
+  bash deploy/ecs/verify-phase2-model-load.sh
+
+sudo VUS=5 ITERATIONS=1 E2E_P95_MS=30000 \
+  bash deploy/ecs/verify-phase2-model-load.sh
+```
+
+两档合计只调用九次千问，用于观察单 Worker 排队下的模型成功率、grounded 率、保护过滤率和端到端 p95。它是低成本容量探针，不替代更长时间的稳定性压测。
+
 ## 下一切片
 
 1. 建立可版本化的知识摄取、预览、发布、回滚和增量索引任务；
