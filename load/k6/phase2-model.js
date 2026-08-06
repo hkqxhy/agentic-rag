@@ -49,7 +49,9 @@ function jsonHeaders(extra = {}) {
 
 function ensureAccount() {
   if (registered) return;
-  const username = `model_${runId}_${__VU}`.slice(0, 32);
+  const safeRunId = runId.replace(/[^A-Za-z0-9_]/g, "_");
+  const vuSuffix = `_${__VU}`;
+  const username = `${`model_${safeRunId}`.slice(0, 32 - vuSuffix.length)}${vuSuffix}`;
   const response = http.post(
     `${baseUrl}/api/v1/auth/register`,
     JSON.stringify({
@@ -60,7 +62,9 @@ function ensureAccount() {
     jsonHeaders(),
   );
   if (!check(response, { "account registered": (item) => item.status === 201 })) {
-    fail(`registration failed with status ${response.status}`);
+    fail(
+      `registration failed with status ${response.status}: ${String(response.body).slice(0, 500)}`,
+    );
   }
   registered = true;
 }
