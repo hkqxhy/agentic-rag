@@ -211,3 +211,10 @@ jobs:
           -v "$PWD/load/k6:/scripts:ro"
           grafana/k6:2.0.0
           inspect /scripts/phase2-model.js
+
+      - name: Validate Phase 2 platform-load contract
+        run: >-
+          docker run --rm
+          -v "$PWD/load/k6:/scripts:ro"
+          grafana/k6:2.0.0
+          inspect /scripts/phase2-platform.js

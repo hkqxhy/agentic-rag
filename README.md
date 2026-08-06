@@ -51,7 +51,7 @@ docker compose -f deploy/compose/docker-compose.yml down
 - 前端在回答下方展示最多三个知识来源，刷新历史对话后仍可恢复；
 - 兼容阿里云百炼 OpenAI 接口，未配置 API Key 时自动使用可审计的抽取式回答，不阻塞工程验收。
 
-Phase 1 的实测证据见 [Phase 1 验收报告](docs/PHASE1_ACCEPTANCE_REPORT.md)。
+Phase 1 的实测证据见 [Phase 1 验收报告](docs/PHASE1_ACCEPTANCE_REPORT.md)。Phase 2 的真实千问 2/5 并发结果、100 用户平台门禁和对外表述边界见 [Phase 2 容量与效果基线](docs/PHASE2_CAPACITY_BASELINE.md)。
 
 ECS 公网部署的域名、Secret、安全组和启动步骤见 [ECS 部署手册](docs/ECS_DEPLOYMENT.md)。
 
