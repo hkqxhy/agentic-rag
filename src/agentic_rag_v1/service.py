@@ -297,6 +297,9 @@ class NewStudentAssistant:
             return None
         messages = self._llm_messages(question, rewritten, hits, sources, diagnostics)
         answer = self.llm.chat(messages)
+        if answer and _unsupported_urls(answer, hits):
+            self.llm.last_error = "unsupported_url"
+            return None
         if answer and _has_citation(answer):
             return answer
         if answer:
@@ -326,6 +329,8 @@ class NewStudentAssistant:
                     "你是南京大学新生问答助手。只基于给定资料回答，关键结论后标注引用编号，"
                     "例如 [S1]。如果资料不足，说明无法回答并给出下一步咨询建议。"
                     "涉及年份、金额、报到时间、系统入口时要提醒以当年官方通知为准。"
+                    "不得输出资料中没有原样出现的网址、邮箱、电话、办理入口或政策结论。"
+                    "不要依靠常识补全学校信息，也不要把建议写成已经确认的事实。"
                     "回答要清晰、温和、面向第一次接触大学流程的新生。"
                 ),
             },
@@ -498,6 +503,19 @@ def _chunk_answer(chunk: KnowledgeChunk) -> str:
 
 def _has_citation(answer: str) -> bool:
     return bool(re.search(r"\[S\d+\]", answer))
+
+
+def _unsupported_urls(answer: str, hits: list[SearchHit]) -> list[str]:
+    evidence_urls = {
+        url.rstrip("/")
+        for hit in hits
+        for url in extract_urls(hit.chunk.content)
+    }
+    return [
+        url
+        for url in extract_urls(answer)
+        if url.rstrip("/") not in evidence_urls
+    ]
 
 
 def _stream_text(text: str, chunk_size: int = 18) -> Iterator[dict[str, str]]:

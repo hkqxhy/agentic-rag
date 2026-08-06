@@ -9,6 +9,8 @@ from agentic_rag.agent import AgentRuntime
 from agentic_rag.agent.evaluate import run_effect_evaluation
 from agentic_rag_v1.config import RAGConfig
 from agentic_rag_v1.llm import OpenAICompatibleLLM
+from agentic_rag_v1.schema import KnowledgeChunk, SearchHit
+from agentic_rag_v1.service import _unsupported_urls
 
 
 def test_fixture_effect_suite_passes_without_model_cost(tmp_path: Path) -> None:
@@ -62,3 +64,20 @@ def test_model_gateway_reports_safe_http_failure_reason() -> None:
     assert answer is None
     assert gateway.last_error == "http_401"
     assert "secret" not in gateway.last_error
+
+
+def test_unsupported_model_urls_are_detected() -> None:
+    hit = SearchHit(
+        chunk=KnowledgeChunk(
+            id="source-1",
+            content="唯一允许的入口是 https://example.edu.cn/notice 。",
+            source="fixture.md",
+        ),
+        score=1.0,
+        rank=1,
+    )
+
+    assert _unsupported_urls("请访问 https://example.edu.cn/notice [S1]", [hit]) == []
+    assert _unsupported_urls("请访问 https://invented.example/ [S1]", [hit]) == [
+        "https://invented.example/"
+    ]

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from agentic_rag_v1.config import RAGConfig
+from agentic_rag_v1.text import extract_urls
 
 from .runtime import AgentRoute, AgentRuntime
 
@@ -54,10 +55,21 @@ def run_effect_evaluation(
         generation = outcome.diagnostics.get("generation") or {}
         generation_mode = str(generation.get("mode", outcome.diagnostics.get("mode", "unknown")))
         has_citations = bool(_CITATION_PATTERN.search(outcome.answer))
+        evidence_urls = {
+            url.rstrip("/")
+            for source in outcome.sources
+            for url in extract_urls(str(source.get("content", "")))
+        }
+        unsupported_urls = [
+            url
+            for url in extract_urls(outcome.answer)
+            if url.rstrip("/") not in evidence_urls
+        ]
         checks = {
             "route": outcome.route == case.expected_route,
             "grounded": outcome.grounded == case.expected_grounded,
             "citations": has_citations == case.expect_citations,
+            "url_grounding": not unsupported_urls,
             "llm": not (require_llm and case.expect_llm) or generation_mode == "llm",
         }
         results.append(
@@ -70,6 +82,7 @@ def run_effect_evaluation(
                 "latency_ms": round(latency_ms, 2),
                 "source_count": len(outcome.sources),
                 "has_citations": has_citations,
+                "unsupported_urls": unsupported_urls,
                 "answer_preview": outcome.answer[:240],
                 "checks": checks,
                 "passed": all(checks.values()),
@@ -79,6 +92,7 @@ def run_effect_evaluation(
     latencies = [float(item["latency_ms"]) for item in results]
     llm_cases = [item for item in results if item["expect_llm"]]
     llm_successes = sum(item["generation_mode"] == "llm" for item in llm_cases)
+    llm_latencies = [float(item["latency_ms"]) for item in llm_cases]
     return {
         "passed": all(item["passed"] for item in results),
         "require_llm": require_llm,
@@ -88,9 +102,12 @@ def run_effect_evaluation(
             "route_accuracy": _mean_check(results, "route"),
             "grounding_accuracy": _mean_check(results, "grounded"),
             "citation_accuracy": _mean_check(results, "citations"),
+            "url_grounding_accuracy": _mean_check(results, "url_grounding"),
             "llm_success_rate": llm_successes / max(1, len(llm_cases)),
             "latency_p50_ms": round(statistics.median(latencies), 2),
             "latency_p95_ms": round(_percentile(latencies, 0.95), 2),
+            "llm_latency_p50_ms": round(statistics.median(llm_latencies), 2),
+            "llm_latency_p95_ms": round(_percentile(llm_latencies, 0.95), 2),
         },
         "results": results,
     }
