@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -38,6 +39,16 @@ class Settings(BaseSettings):
     auth_rate_window_seconds: int = Field(default=300, ge=10, le=3_600)
     otel_enabled: bool = False
     otel_exporter_otlp_endpoint: str = "http://otel-collector:4318/v1/traces"
+    dense_retrieval_mode: Literal["off", "shadow", "hybrid"] = "off"
+    embedding_base_url: str = ""
+    embedding_api_key: str = "EMPTY"
+    embedding_model: str = "text-embedding-v4"
+    embedding_dimensions: Literal[1024] = 1024
+    embedding_version: str = "text-embedding-v4-1024-v1"
+    embedding_timeout_seconds: float = Field(default=15.0, ge=1.0, le=120.0)
+    dense_candidate_k: int = Field(default=40, ge=1, le=200)
+    dense_min_similarity: float = Field(default=0.45, ge=-1.0, le=1.0)
+    dense_rrf_weight: float = Field(default=1.0, ge=0.0, le=5.0)
 
     @property
     def allowed_origins(self) -> list[str]:
@@ -50,6 +61,15 @@ class Settings(BaseSettings):
                 raise ValueError("secure session cookies are required in production")
             if self.audit_hash_key == "development-only-change-me":
                 raise ValueError("AGENTIC_RAG_AUDIT_HASH_KEY must be changed in production")
+        if self.dense_retrieval_mode != "off":
+            if not self.embedding_base_url:
+                raise ValueError(
+                    "AGENTIC_RAG_EMBEDDING_BASE_URL is required when dense retrieval is enabled"
+                )
+            if not self.embedding_api_key or self.embedding_api_key == "EMPTY":
+                raise ValueError(
+                    "AGENTIC_RAG_EMBEDDING_API_KEY is required when dense retrieval is enabled"
+                )
         return self
 
 

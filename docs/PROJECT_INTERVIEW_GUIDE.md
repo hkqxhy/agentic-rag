@@ -19,7 +19,7 @@ Agentic RAG 是一个面向高校新生事务的证据约束型问答系统。�
 - LangGraph 有界状态图：normalize、classify、direct、clarify、rag、verify。
 - 四种路由：直接回答、澄清、快速 RAG、研究型 RAG。
 - 多格式资料加载：QA/JSON、Markdown、TXT、CSV、DOCX、PDF。
-- BM25 与字符 n-gram 混合召回、RRF 融合、领域重排。
+- BM25、字符 n-gram 与 pgvector Dense 混合召回、RRF 融合、领域重排。
 - 多查询改写、纠错检索、来源权威度、时效性、证据密度和多样性诊断。
 - 轻量 GraphRAG：主题节点、共现边、目录社区、社区摘要和图扩展加权。
 - 阿里云百炼 qwen-plus 的 OpenAI-compatible 接入。
@@ -34,7 +34,7 @@ Agentic RAG 是一个面向高校新生事务的证据约束型问答系统。�
 
 ### 2.2 尚未实现或不能夸大的部分
 
-- 当前主检索不是 dense embedding + 向量数据库。它是 BM25 + 字符 n-gram + 规则信号的轻量混合检索。
+- 当前代码已加入pgvector与`text-embedding-v4`，但ECS需要完成备份、镜像迁移、向量入库和Shadow评测后才会从`off`切到`hybrid`，不能把“代码已实现”说成“线上已验证”。
 - 当前没有 cross-encoder reranker，重排是可解释的领域特征加权。
 - 当前 GraphRAG 不是微软 GraphRAG 的完整复刻，不依赖 Neo4j，也没有用 LLM 抽取实体关系或生成正式社区报告。
 - 正式学校知识库尚未接入。仓库只包含脱敏 fixture、manifest schema 和知识治理边界。
@@ -314,9 +314,9 @@ SearchHit 在此基础上增加 score、rank 和 signals，并可转换成前端
 
 ### 6.4 索引缓存
 
-storage.py 根据文件绝对路径、大小和 mtime_ns 生成 24 位 fingerprint。fingerprint 未变化时直接读取 index.json；发生变化则重新加载和切分。
+storage.py根据文件绝对路径、大小和mtime_ns生成24位fingerprint。fingerprint未变化时直接读取index.json；发生变化则重新加载和切分。这一层仍用于本地BM25、n-gram和GraphRAG构建。
 
-这是轻量缓存，不是在线增量向量索引。它适合当前小规模知识库和单 Worker 启动场景。
+pgvector链路额外把文档、Chunk和Embedding持久化到PostgreSQL，通过content_hash只生成新增或变化内容的向量。两套索引使用同一个稳定Chunk ID对齐：本地索引负责低成本词法基线，数据库索引负责Dense召回和跨Worker共享。
 
 ## 7. 基础混合检索
 
@@ -367,7 +367,19 @@ $$
 
 项目 k=60。某文档在多个检索器中排名靠前，融合分数就更高。
 
-### 7.4 领域重排
+### 7.4 pgvector Dense检索
+
+Worker对经过会话上下文改写的最终查询调用一次`text-embedding-v4`，得到1024维向量，再使用pgvector余弦距离从active Chunk中取Top 40。知识向量使用HNSW索引，并按`embedding_model`和`embedding_version`过滤。
+
+三种运行模式：
+
+- `off`：完全保持原词法链路；
+- `shadow`：真实执行Dense召回但不改变答案，只记录候选和延迟；
+- `hybrid`：Dense候选进入Weighted RRF和最终重排。
+
+Embedding或数据库查询异常会记录`fallback`，然后继续使用BM25/n-gram，不让外部Embedding服务成为回答单点。
+
+### 7.5 领域重排
 
 基础重排加入：
 
@@ -425,6 +437,7 @@ final =
   + 0.05 * evidence_density
   + 0.05 * multi_query_support
   + 0.035 * freshness
+  + 0.12 * dense_similarity
 ~~~
 
 这些权重是工程启发式权重，不是监督学习得到的参数。面试中不要把它称为“训练出的 reranker”。
@@ -464,13 +477,14 @@ quality 综合：
 - route match。
 - 第一名与第二名的 margin。
 - freshness。
+- semantic_support，即Top结果的Dense相似度支持。
 
 证据充分条件：
 
 ~~~text
 top_score >= 0.15
 quality >= 0.28
-coverage >= 0.06
+coverage >= 0.06 或 semantic_support >= dense_min_similarity
 ~~~
 
 诊断会记录 low_top_score、low_query_coverage、weak_source_authority、low_source_diversity、possibly_stale_evidence 等原因。
@@ -1121,16 +1135,17 @@ P95=6 秒表示 95% 请求不超过 6 秒，最慢的 5% 可能更久。P95 比�
 
 只用 PostgreSQL 可以做队列，但轮询和事件流实现更复杂；只用 Redis 又不适合作为完整业务事实数据库。
 
-### 21.4 为什么不用向量数据库
+### 21.4 为什么选择pgvector而不是独立向量数据库
 
-当前选择先建立零模型依赖基线：
+项目已经保留零模型依赖的词法基线，并在同一个PostgreSQL 17中加入pgvector：
 
-- 部署简单。
-- 可在 CPU ECS 上运行。
-- 可解释。
-- 能作为未来 dense retrieval 的消融对照。
+- 复用现有事务、备份、连接和监控体系；
+- 4核8 GiB ECS不需要再运行一个常驻向量服务；
+- 文档治理元数据、Chunk和向量可以通过外键保持一致；
+- `off/shadow/hybrid`允许先观测再影响答案；
+- BM25和n-gram仍是向量检索的消融基线与故障降级路径。
 
-不足是语义泛化能力有限。下一步应加入中文 embedding 和 cross-encoder，并保留现有 sparse 检索做 hybrid。
+代价是超大规模向量检索和原生dense/sparse多向量能力不如Qdrant或Milvus。当前知识规模和100注册用户目标下，低运维成本更重要；当知识块达到数十万并与业务SQL产生明显资源竞争时，再评估拆分。
 
 ### 21.5 为什么用 SSE
 
@@ -1144,7 +1159,7 @@ P95=6 秒表示 95% 请求不超过 6 秒，最慢的 5% 可能更久。P95 比�
 
 ### Q1：请用一分钟介绍项目
 
-> 这是一个面向高校新生事务的 Agentic RAG 系统。我没有把模型调用直接塞进 HTTP 请求，而是把用户消息和 Agent Run 先持久化到 PostgreSQL，通过 Redis 队列交给独立 Worker。Worker 使用 LangGraph 在直接回答、澄清、快速检索和研究型检索之间路由，再用 BM25、字符 n-gram、RRF、领域重排和轻量 GraphRAG 找证据，最后调用阿里云千问生成带引用答案。事件通过 Redis Stream 和 SSE 推给 Next.js，刷新后可以从数据库和活动 Run 恢复。系统已用 Docker Compose 和 Caddy 部署到阿里云 ECS，并完成账号隔离、限流、CI、故障恢复和容量测试。
+> 这是一个面向高校新生事务的 Agentic RAG 系统。我没有把模型调用直接塞进 HTTP 请求，而是把用户消息和 Agent Run 先持久化到 PostgreSQL，通过 Redis 队列交给独立 Worker。Worker 使用 LangGraph 在直接回答、澄清、快速检索和研究型检索之间路由，再用 BM25、字符n-gram、pgvector Dense、RRF、领域重排和轻量GraphRAG找证据，最后调用阿里云千问生成带引用答案。Dense链路支持off、shadow和hybrid灰度，失败自动回退词法检索。事件通过Redis Stream和SSE推给Next.js，刷新后可以从数据库和活动Run恢复。系统已用Docker Compose和Caddy部署到阿里云ECS；pgvector代码已完成，但ECS镜像迁移和真实Embedding评测仍需按上线手册执行。
 
 ### Q2：你的 Agent 和普通 RAG 有什么区别
 
@@ -1158,9 +1173,9 @@ P95=6 秒表示 95% 请求不超过 6 秒，最慢的 5% 可能更久。P95 比�
 
 > 当前两者都进入同一检索节点，区别保存在路由和轨迹里。现阶段先验证路由和工程链路，后续会让 research_rag 使用更高 top_k、更强图扩展或多轮工具查询。面试时必须如实说明，不能把预留接口说成已完成差异化执行。
 
-### Q5：你的混合检索为什么没有向量
+### Q5：你的混合检索如何融合向量和关键词
 
-> 当前 hybrid 指 BM25 sparse 召回和字符 n-gram 统计向量召回，再用 RRF 融合。它不是 dense embedding。这样设计是为了在低预算 CPU 环境中建立可解释、无模型依赖的基线。下一阶段会加入中文 embedding 和 cross-encoder，并用现有评测集做消融。
+> 词法侧保留BM25和字符n-gram，语义侧使用text-embedding-v4生成1024维查询向量，在pgvector中做HNSW余弦召回。不同检索器的原始分数不在同一尺度，所以先按排名做Weighted RRF，再叠加权威度、时效性、直接回答匹配和有界语义支持度。上线采用off、shadow、hybrid三段式，Embedding或pgvector失败时自动只走词法链路。
 
 ### Q6：RRF 为什么适合这里
 
@@ -1216,15 +1231,15 @@ P95=6 秒表示 95% 请求不超过 6 秒，最慢的 5% 可能更久。P95 比�
 
 ### Q19：知识库如何更新
 
-> 当前支持文件重新加载和fingerprint缓存重建，并定义了manifest schema。正式流程应是原文件进入raw或对象存储，解析标准化，校验来源、权限、有效期和隐私，生成shadow index，跑回归后原子切换。完整管理后台尚未实现。
+> 当前支持文件解析、fingerprint缓存、manifest schema、受治理的文档/Chunk/Embedding表、content_hash增量向量生成和幂等发布。入库会先生成全部缺失向量，再在数据库事务中发布，并支持Shadow检索和消融评测。正式资料采集、人工审核、可视化差异、审批和一键回滚管理后台仍未实现。
 
 ### Q20：项目最大的不足
 
-> 三点：正式知识未接入；检索还没有dense embedding和学习型reranker；任务队列缺少ACK和visibility timeout。另外模型原生token流、正式监控告警和知识发布后台也需要继续完善。
+> 三点：正式学校知识仍未接入；pgvector代码已实现但还没有完成ECS真实Embedding评测，也没有学习型reranker；任务队列缺少ACK和visibility timeout。另外模型原生token流、正式监控告警和知识审核后台也需要继续完善。
 
 ### Q21：如果重新设计你会先改什么
 
-> 先升级任务可靠性和知识发布链路，因为它们决定生产可信度；然后加入dense retrieval与cross-encoder，通过现有评测做消融；最后做模型原生流式和多Worker扩容。
+> 先完成pgvector的ECS Shadow评测与正式知识接入，再升级任务可靠性和知识审批发布链路；只有消融证明收益后才加入qwen3-rerank；最后做模型原生流式和多Worker扩容。
 
 ## 23. 常见术语速查
 
@@ -1272,7 +1287,7 @@ P95=6 秒表示 95% 请求不超过 6 秒，最慢的 5% 可能更久。P95 比�
 5. 可靠性：Run、幂等、SSE恢复、降级。
 6. 安全：Argon2、Session、owner隔离、限流和输出过滤。
 7. 部署与测试：ECS、Docker Compose、CI和容量结果。
-8. 局限与下一步：正式知识、dense retrieval、可靠队列、真流式。
+8. 局限与下一步：正式知识采集与审核后台、ECS Dense Shadow 验证、可靠队列、模型原生真流式。
 
 ## 25. 代码阅读路线
 
@@ -1300,7 +1315,7 @@ P95=6 秒表示 95% 请求不超过 6 秒，最慢的 5% 可能更久。P95 比�
 - 能否在白板上画出消息从浏览器到Worker再返回的链路？
 - 能否解释为什么PostgreSQL是事实源、Redis是协调层？
 - 能否写出RRF公式并解释为什么不直接相加？
-- 能否说明当前hybrid不包含dense embedding？
+- 能否说明BM25、n-gram、pgvector Dense和Weighted RRF如何配合？
 - 能否说明当前GraphRAG和完整GraphRAG的差异？
 - 能否解释grounded不等于绝对正确？
 - 能否解释幂等键和数据库唯一约束如何配合？

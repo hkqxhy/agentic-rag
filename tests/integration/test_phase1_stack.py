@@ -5,8 +5,12 @@ from uuid import uuid4
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 
 from agentic_rag.api.app import create_app
+from agentic_rag.database import Database
+from agentic_rag.knowledge.dense import DenseRetrievalService, serialize_vector
+from agentic_rag.knowledge.embedding import EmbeddingClient
 from agentic_rag.settings import Settings
 from agentic_rag.worker import process_run
 
@@ -14,6 +18,12 @@ pytestmark = pytest.mark.skipif(
     os.getenv("AGENTIC_RAG_RUN_INTEGRATION") != "1",
     reason="set AGENTIC_RAG_RUN_INTEGRATION=1 with PostgreSQL and Redis available",
 )
+
+
+class FakeEmbeddingClient(EmbeddingClient):
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        assert texts
+        return [[1.0, *([0.0] * 1023)] for _ in texts]
 
 
 @pytest.mark.asyncio
@@ -26,6 +36,99 @@ async def test_idle_queue_wait_outlives_redis_py_default_timeout() -> None:
 
     async with app.router.lifespan_context(app):
         assert await app.state.broker.dequeue(timeout_seconds=6) is None
+
+
+@pytest.mark.asyncio
+async def test_pgvector_dense_retrieval_round_trip() -> None:
+    settings = Settings(  # type: ignore[call-arg]
+        _env_file=None,
+        dense_retrieval_mode="hybrid",
+        embedding_base_url="https://example.test/v1",
+        embedding_api_key="test-key",
+        dense_min_similarity=0.4,
+    )
+    database = Database(settings.database_url)
+    suffix = uuid4().hex
+    document_id = f"dense-doc-{suffix}"
+    chunk_id = f"dense-chunk-{suffix}"
+    vector = serialize_vector([1.0, *([0.0] * 1023)])
+    try:
+        async with database.session() as session:
+            await session.execute(
+                text(
+                    """
+                    INSERT INTO knowledge_documents (
+                        id, source_uri, title, status, authority_level, checksum, metadata
+                    ) VALUES (:id, :source, 'Dense test', 'test_only', 'fixture',
+                              :checksum, '{}'::jsonb)
+                    """
+                ),
+                {"id": document_id, "source": document_id, "checksum": f"sha256:{'0' * 64}"},
+            )
+            await session.execute(
+                text(
+                    """
+                    INSERT INTO knowledge_chunks (
+                        id, document_id, chunk_index, content, title, source,
+                        metadata, content_hash, status
+                    ) VALUES (
+                        :id, :document_id, 0, '校园卡挂失补办流程', '校园卡',
+                        :source, '{}'::jsonb, :content_hash, 'active'
+                    )
+                    """
+                ),
+                {
+                    "id": chunk_id,
+                    "document_id": document_id,
+                    "source": document_id,
+                    "content_hash": "1" * 64,
+                },
+            )
+            await session.execute(
+                text(
+                    """
+                    INSERT INTO knowledge_embeddings (
+                        chunk_id, embedding_model, embedding_version,
+                        dimensions, content_hash, embedding
+                    ) VALUES (
+                        :chunk_id, :model, :version, 1024, :content_hash,
+                        CAST(:embedding AS vector)
+                    )
+                    """
+                ),
+                {
+                    "chunk_id": chunk_id,
+                    "model": settings.embedding_model,
+                    "version": settings.embedding_version,
+                    "content_hash": "1" * 64,
+                    "embedding": vector,
+                },
+            )
+            await session.commit()
+
+        service = DenseRetrievalService(
+            settings,
+            embedding_client=FakeEmbeddingClient(
+                base_url="https://example.test/v1",
+                api_key="test-key",
+                model="test-model",
+            ),
+        )
+        result = await service.search("饭卡丢了", database)
+
+        assert result.diagnostics["status"] == "ok"
+        assert result.hits[0].chunk.id == chunk_id
+        assert result.hits[0].score == pytest.approx(1.0)
+    finally:
+        async with database.session() as session:
+            await session.execute(
+                text(
+                    "DELETE FROM knowledge_documents WHERE id = :id"
+                ),
+                {"id": document_id},
+            )
+            await session.commit()
+        await database.close()
 
 
 @pytest.mark.asyncio

@@ -34,5 +34,20 @@ class Database:
         async with self.engine.connect() as connection:
             await connection.execute(text("SELECT 1"))
 
+    async def vector_ping(self) -> None:
+        async with self.engine.connect() as connection:
+            result = await connection.execute(
+                text(
+                    """
+                    SELECT extversion
+                    FROM pg_extension
+                    WHERE extname = 'vector'
+                    """
+                )
+            )
+            if result.scalar_one_or_none() is None:
+                raise RuntimeError("pgvector extension is not installed")
+            await connection.execute(text("SELECT 1 FROM knowledge_embeddings LIMIT 1"))
+
     async def close(self) -> None:
         await self.engine.dispose()

@@ -4,12 +4,15 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     MetaData,
     String,
     Text,
@@ -17,6 +20,7 @@ from sqlalchemy import (
     Uuid,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 NAMING_CONVENTION = {
@@ -161,3 +165,69 @@ class AgentRunModel(TimestampMixin, Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     conversation: Mapped[ConversationModel] = relationship(back_populates="runs")
+
+
+class KnowledgeDocumentModel(TimestampMixin, Base):
+    __tablename__ = "knowledge_documents"
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source_uri: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False)
+    authority_level: Mapped[str] = mapped_column(String(24), nullable=False)
+    checksum: Mapped[str] = mapped_column(String(71), nullable=False)
+    document_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", JSONB, nullable=False, default=dict
+    )
+
+
+class KnowledgeChunkModel(TimestampMixin, Base):
+    __tablename__ = "knowledge_chunks"
+    __table_args__ = (
+        Index("ix_knowledge_chunks_document_status", "document_id", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_documents.id", ondelete="CASCADE"), nullable=False
+    )
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    chunk_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", JSONB, nullable=False, default=dict
+    )
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="active")
+
+
+class KnowledgeEmbeddingModel(Base):
+    __tablename__ = "knowledge_embeddings"
+    __table_args__ = (
+        CheckConstraint("dimensions = 1024", name="embedding_dimensions_1024"),
+        Index(
+            "ix_knowledge_embeddings_model_version",
+            "embedding_model",
+            "embedding_version",
+        ),
+        Index(
+            "ix_knowledge_embeddings_hnsw_cosine",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+            postgresql_with={"m": 16, "ef_construction": 64},
+        ),
+    )
+
+    chunk_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_chunks.id", ondelete="CASCADE"), primary_key=True
+    )
+    embedding_model: Mapped[str] = mapped_column(String(80), primary_key=True)
+    embedding_version: Mapped[str] = mapped_column(String(120), primary_key=True)
+    dimensions: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    embedding: Mapped[Any] = mapped_column(Vector(1024), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

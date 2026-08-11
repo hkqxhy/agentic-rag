@@ -95,8 +95,14 @@ class NewStudentAssistant:
                 index_dir=self.config.index_dir,
                 use_cache=self.config.use_cache,
                 force_graph=force_graph,
+                dense_rrf_weight=self.config.dense_rrf_weight,
+                dense_min_similarity=self.config.dense_min_similarity,
             )
-        return AdvancedRetriever(self.chunks)
+        return AdvancedRetriever(
+            self.chunks,
+            dense_rrf_weight=self.config.dense_rrf_weight,
+            dense_min_similarity=self.config.dense_min_similarity,
+        )
 
     def clear(self, session_id: str = "default") -> None:
         self.history.pop(session_id, None)
@@ -106,6 +112,8 @@ class NewStudentAssistant:
         question: str,
         session_id: str = "default",
         top_k: int | None = None,
+        dense_hits: list[SearchHit] | None = None,
+        dense_diagnostics: dict[str, Any] | None = None,
     ) -> AnswerResult:
         question = normalize_text(question)
         if not question:
@@ -122,6 +130,8 @@ class NewStudentAssistant:
             rewritten,
             top_k=top_k or self.config.top_k,
             candidate_k=self.config.candidate_k,
+            dense_hits=dense_hits,
+            dense_diagnostics=dense_diagnostics,
         )
         diagnostics = self._retrieval_diagnostics()
         confidence = self._blend_confidence(self._confidence(hits), diagnostics)
@@ -288,6 +298,9 @@ class NewStudentAssistant:
         )
         self._remember(session_id, question, answer)
         return result
+
+    def rewrite_query(self, question: str, session_id: str) -> str:
+        return self._rewrite_query(normalize_text(question), session_id)
 
     def _rewrite_query(self, question: str, session_id: str) -> str:
         history = self.history.get(session_id)

@@ -81,7 +81,7 @@ Agentic RAG 的差异化不应是“又一个通用聊天 RAG”，而是“面�
 1. 能处理校园知识的多源异构性：正式 PDF、指南、目录、QA、群聊沉淀。
 2. 能区分“能答”和“该核验”：对年份、费用、时间、系统入口保持保守。
 3. 能解释检索过程：每次回答都有诊断，便于运营者排查知识库缺口。
-4. 能用低依赖方式落地：不强制依赖向量库和重型框架，后续可逐步接入 embedding、cross-encoder、知识图谱。
+4. 能按成本分级落地：词法基线不依赖模型；生产链路可启用 `text-embedding-v4` + pgvector Dense 召回，并通过 `off -> shadow -> hybrid` 灰度开关与自动降级控制风险。
 5. 能围绕新生场景持续进化：意图、路由词、权威来源规则都可以低成本迭代。
 
 ## 如何运行
@@ -132,7 +132,7 @@ python -X utf8 -m agentic_rag_v1.evaluate --output-dir reports --top-k 5
 
 ## 后续增强建议
 
-1. 接入中文 embedding + cross-encoder reranker，把当前 lexical advanced RAG 升级为 hybrid dense/sparse RAG。
+1. 当前已接入中文 embedding + pgvector，并用 Weighted RRF 把 lexical advanced RAG 升级为 hybrid dense/sparse RAG；下一步是在 ECS 完成 Shadow 消融评测，再决定是否启用 cross-encoder reranker。
 2. 把 `Documents/` 里的院系、校区、事务流程做成轻量知识图谱，用 GraphRAG 风格的社区摘要回答总览型问题。
 3. 增加人工审核台，对 `possibly_stale_evidence`、低 quality 问题沉淀为知识库更新任务。
 4. 建立新生高频问题黄金评测集，按身份认证、报到、医保、校园卡、选课、住宿、交通、社团分层统计。

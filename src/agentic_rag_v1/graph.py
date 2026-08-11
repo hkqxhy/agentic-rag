@@ -517,13 +517,32 @@ class GraphRAGRetriever(AdvancedRetriever):
         index_dir: Path | None = None,
         use_cache: bool = True,
         force_graph: bool = False,
+        dense_rrf_weight: float = 1.0,
+        dense_min_similarity: float = 0.45,
     ):
-        super().__init__(chunks)
+        super().__init__(
+            chunks,
+            dense_rrf_weight=dense_rrf_weight,
+            dense_min_similarity=dense_min_similarity,
+        )
         self.graph = load_or_build_graph(chunks, index_dir, use_cache=use_cache, force=force_graph)
 
-    def search(self, query: str, top_k: int = 5, candidate_k: int = 40) -> list[SearchHit]:
+    def search(
+        self,
+        query: str,
+        top_k: int = 5,
+        candidate_k: int = 40,
+        dense_hits: list[SearchHit] | None = None,
+        dense_diagnostics: dict[str, Any] | None = None,
+    ) -> list[SearchHit]:
         graph_result = self.graph.search(query, top_k=max(top_k, 4))
-        base_hits = super().search(query, top_k=top_k + 4, candidate_k=candidate_k)
+        base_hits = super().search(
+            query,
+            top_k=top_k + 4,
+            candidate_k=candidate_k,
+            dense_hits=dense_hits,
+            dense_diagnostics=dense_diagnostics,
+        )
         advanced_diagnostics = dict(self.last_diagnostics)
         hits = merge_graph_and_rag_hits(
             base_hits=base_hits,
@@ -839,9 +858,14 @@ def combine_diagnostics(
     quality = float(advanced_diagnostics.get("quality", 0.0))
     if graph_diagnostics.get("matched_terms"):
         quality = max(quality, min(1.0, quality + 0.08))
+    mode = (
+        "hybrid_dense_sparse_graph_rag"
+        if advanced_diagnostics.get("mode") == "hybrid_dense_sparse_rag"
+        else "graph_rag"
+    )
     return {
         **advanced_diagnostics,
-        "mode": "graph_rag",
+        "mode": mode,
         "quality": round(quality, 4),
         "graph": graph_diagnostics,
         "graph_hit_count": graph_hit_count,

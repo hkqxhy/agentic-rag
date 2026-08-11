@@ -55,6 +55,7 @@ ECS 会优先使用宿主机已安装的 `k6`，未找到时才回退到 Grafana
 ## 下一切片
 
 1. 建立可版本化的知识摄取、预览、发布、回滚和增量索引任务；
-2. 引入独立稠密向量检索与 reranker，并与当前检索做消融对比；
-3. 扩充黄金测试集，增加 groundedness、citation precision、retrieval recall、拒答和延迟/成本指标；
-4. 在 ECS 配置千问 Key 后重新执行功能、10/20 并发和稳定性测试。
+2. pgvector稠密向量检索、增量入库、Shadow/Hybrid灰度和消融命令已经进入主干，下一步在ECS完成备份、镜像切换和真实Embedding评测；
+3. 评估`qwen3-rerank`，仅在Dense收益通过消融门禁后接入；
+4. 扩充黄金测试集，增加groundedness、citation precision、retrieval recall、拒答和延迟/成本指标；
+5. Hybrid启用后重新执行真实模型功能、2/5并发和平台容量测试。

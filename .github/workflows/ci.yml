@@ -72,7 +72,7 @@ jobs:
     timeout-minutes: 12
     services:
       postgres:
-        image: postgres:17-alpine
+        image: pgvector/pgvector:0.8.6-pg17-bookworm
         env:
           POSTGRES_DB: agentic_rag
           POSTGRES_USER: agentic_rag

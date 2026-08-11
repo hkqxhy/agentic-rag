@@ -106,10 +106,11 @@ python -X utf8 -m agentic_rag_v1.evaluate --suite regression --baseline reports/
 1. RAG 对可追溯回答是必要的，`no_rag` 在来源命中和关键词覆盖上均为 0。
 2. 加入 `QQ/` 和 `Documents/` 后，知识覆盖明显提升。
 3. 完整混合检索、高级 RAG、GraphRAG 的 Top-3 来源命中均达到 100%，GraphRAG 的 Top-1 与 Advanced RAG 持平。
-4. GraphRAG 额外提供社区摘要和图谱扩展上下文，代价是平均延迟更高；后续应优化索引常驻、倒排索引缓存或引入图数据库/向量数据库。
+4. GraphRAG 额外提供社区摘要和图谱扩展上下文，代价是平均延迟更高；当前已增加 pgvector Dense 召回，应继续通过 lexical/dense/hybrid 消融实验判断语义收益是否覆盖额外延迟。
 
 ## 工程建议
 
 - 开发/论文实验：优先展示 `full_kb_graphrag`，同时保留 `full_kb_advanced` 和 `full_kb_hybrid` 作为消融对照。
 - 线上高并发：可先用 `full_kb_bm25` 或 `full_kb_hybrid` 做候选召回，再对 Top-N 启用高级重排。
-- 后续优化：将 BM25/ngram 统计缓存落盘，或接入 FAISS/Chroma/Milvus 与 cross-encoder reranker。
+- 向量评测：运行 `python -m agentic_rag.knowledge.evaluate` 比较 lexical、dense、hybrid 的 Recall@K、MRR 和延迟；ECS 先用 `shadow` 收集真实查询诊断，再切换 `hybrid`。
+- 后续优化：将 BM25/ngram 统计缓存落盘；仅在混合召回仍存在明显排序误差时再引入 cross-encoder reranker。知识规模达到数十万 Chunk、与业务 SQL 明显争抢资源后，再评估 Qdrant/Milvus 等独立向量服务。

@@ -13,7 +13,10 @@ async def check_dependencies() -> None:
     broker = RunBroker.from_settings(settings)
     try:
         async with asyncio.timeout(3):
-            await asyncio.gather(database.ping(), broker.ping())
+            checks = [database.ping(), broker.ping()]
+            if settings.dense_retrieval_mode != "off":
+                checks.append(database.vector_ping())
+            await asyncio.gather(*checks)
     finally:
         await broker.close()
         await database.close()

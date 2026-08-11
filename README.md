@@ -2,7 +2,7 @@
 
 面向南京大学新生事务的、强调证据边界与可追溯引用的智能助手。仓库正在从可运行的本地 RAG 基线迁移为可部署、可评测、可扩展的 Agentic RAG 工程。
 
-Phase 1 已完成 ECS 验收，当前进入 Phase 2.1。工程主干已将 LangGraph 有界状态图、查询路由、Advanced/Graph RAG、证据核验、引用元数据、千问兼容接口和无模型降级接入异步 Worker；账号、持久会话、Redis 事件流、SSE、ChatGPT 式 Web 界面、数据库迁移、Docker Compose 与分层 CI 保持不变。
+Phase 1 已完成 ECS 验收，Phase 2.1 的真实 Agent/RAG 链路已经上线，当前代码进入 pgvector 混合检索阶段。工程主干已将 LangGraph 有界状态图、查询路由、Advanced/Graph RAG、证据核验、引用元数据、千问兼容接口和无模型降级接入异步 Worker，并新增可灰度发布的 Dense Retrieval；账号、持久会话、Redis 事件流、SSE、ChatGPT 式 Web 界面、数据库迁移、Docker Compose 与分层 CI 保持不变。
 
 ## 一键启动
 
@@ -50,6 +50,16 @@ docker compose -f deploy/compose/docker-compose.yml down
 - Worker 复用单个 Agent runtime，把节点轨迹、置信度、来源、警告和检索诊断持久化到消息元数据；
 - 前端在回答下方展示最多三个知识来源，刷新历史对话后仍可恢复；
 - 兼容阿里云百炼 OpenAI 接口，未配置 API Key 时自动使用可审计的抽取式回答，不阻塞工程验收。
+
+## pgvector 混合检索已实现
+
+- PostgreSQL 17 + pgvector HNSW余弦索引，使用`text-embedding-v4` 1024维向量；
+- 受治理的文档、Chunk和Embedding表，以及基于内容哈希的增量向量生成；
+- BM25、字符n-gram、Dense和GraphRAG融合，保留精确关键词与语义泛化能力；
+- `off -> shadow -> hybrid`灰度开关，Embedding或向量库异常时自动回退词法检索；
+- lexical/dense/hybrid消融评测、真实pgvector集成测试和ECS安全迁移流程。
+
+实现细节、入库命令、评测方法、备份与ECS上线顺序见[pgvector语义检索实施手册](docs/VECTOR_RETRIEVAL_IMPLEMENTATION.md)。新代码默认处于`off`，完成ECS镜像切换和向量入库后再进入Shadow。
 
 Phase 1 的实测证据见 [Phase 1 验收报告](docs/PHASE1_ACCEPTANCE_REPORT.md)。Phase 2 的真实千问 2/5 并发结果、20 用户目标门禁、100 用户突发上限和对外表述边界见 [Phase 2 容量与效果基线](docs/PHASE2_CAPACITY_BASELINE.md)。
 

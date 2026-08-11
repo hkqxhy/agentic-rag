@@ -9,6 +9,7 @@ from redis.exceptions import RedisError
 from .agent import AgentRuntime
 from .broker import RunBroker
 from .database import Database
+from .knowledge import DenseRetrievalService
 from .repository import RunNotFoundError, RunRepository
 from .schemas import MessageView
 from .settings import Settings, get_settings
@@ -35,6 +36,7 @@ async def process_run(
     database: Database,
     broker: RunBroker,
     agent: AgentRuntime | None = None,
+    dense_retrieval: DenseRetrievalService | None = None,
 ) -> None:
     try:
         async with database.session() as session:
@@ -51,10 +53,24 @@ async def process_run(
         if await broker.is_cancelled(run_id):
             return
         runtime = agent or AgentRuntime()
+        dense_hits = []
+        dense_diagnostics = {"mode": "off", "status": "disabled"}
+        if dense_retrieval is not None and runtime.requires_retrieval(input_message.content):
+            retrieval_query = await asyncio.to_thread(
+                runtime.retrieval_query,
+                input_message.content,
+                str(run.conversation_id),
+            )
+            dense_result = await dense_retrieval.search(retrieval_query, database)
+            dense_diagnostics = dense_result.diagnostics
+            if dense_retrieval.settings.dense_retrieval_mode == "hybrid":
+                dense_hits = dense_result.hits
         outcome = await asyncio.to_thread(
             runtime.invoke,
             input_message.content,
             str(run.conversation_id),
+            dense_hits,
+            dense_diagnostics,
         )
         for step in outcome.trace:
             await broker.publish(run_id, "agent.step", {"step": step})
@@ -118,13 +134,17 @@ async def worker_loop(settings: Settings | None = None) -> None:
     database = Database(app_settings.database_url)
     broker = RunBroker.from_settings(app_settings)
     agent = AgentRuntime()
-    LOGGER.info("Worker is ready with LangGraph agent runtime")
+    dense_retrieval = DenseRetrievalService(app_settings)
+    LOGGER.info(
+        "Worker is ready with LangGraph agent runtime; dense retrieval mode=%s",
+        app_settings.dense_retrieval_mode,
+    )
     try:
         while True:
             run_id = await dequeue_run(broker)
             if run_id is None:
                 continue
-            await process_run(run_id, database, broker, agent)
+            await process_run(run_id, database, broker, agent, dense_retrieval)
     finally:
         await broker.close()
         await database.close()

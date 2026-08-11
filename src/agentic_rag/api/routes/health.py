@@ -21,6 +21,8 @@ async def ready(request: Request) -> HealthResponse:
         "postgres": request.app.state.database.ping(),
         "redis": request.app.state.broker.ping(),
     }
+    if request.app.state.settings.dense_retrieval_mode != "off":
+        checks["pgvector"] = request.app.state.database.vector_ping()
     results = await asyncio.gather(*checks.values(), return_exceptions=True)
     for name, result in zip(checks, results, strict=True):
         dependencies[name] = "ok" if not isinstance(result, BaseException) else "unavailable"

@@ -9,6 +9,7 @@ from typing import Any, Literal, TypedDict
 from langgraph.graph import END, START, StateGraph
 
 from agentic_rag_v1.config import RAGConfig
+from agentic_rag_v1.schema import SearchHit
 from agentic_rag_v1.service import NewStudentAssistant, classify_intent
 from agentic_rag_v1.text import normalize_text
 
@@ -52,6 +53,8 @@ class AgentState(TypedDict, total=False):
     grounded: bool
     need_clarification: bool
     trace: list[dict[str, Any]]
+    dense_hits: list[SearchHit]
+    dense_diagnostics: dict[str, Any]
 
 
 @dataclass(slots=True, frozen=True)
@@ -95,12 +98,30 @@ class AgentRuntime:
         self.assistant = NewStudentAssistant(config)
         self.graph = self._build_graph()
 
-    def invoke(self, question: str, conversation_id: str) -> AgentOutcome:
+    def retrieval_query(self, question: str, conversation_id: str) -> str:
+        return self.assistant.rewrite_query(question, conversation_id)
+
+    @staticmethod
+    def requires_retrieval(question: str) -> bool:
+        return _route_for_query(normalize_text(question)) in {"fast_rag", "research_rag"}
+
+    def invoke(
+        self,
+        question: str,
+        conversation_id: str,
+        dense_hits: list[SearchHit] | None = None,
+        dense_diagnostics: dict[str, Any] | None = None,
+    ) -> AgentOutcome:
         state = self.graph.invoke(
             {
                 "question": question,
                 "conversation_id": conversation_id,
                 "trace": [],
+                "dense_hits": dense_hits or [],
+                "dense_diagnostics": dense_diagnostics or {
+                    "mode": "off",
+                    "status": "disabled",
+                },
             }
         )
         return AgentOutcome(
@@ -153,17 +174,7 @@ class AgentRuntime:
     @staticmethod
     def _classify(state: AgentState) -> AgentState:
         query = state.get("normalized_query", "")
-        folded = query.casefold().strip("!?！？。,.， ")
-        if not query:
-            route: AgentRoute = "clarify"
-        elif folded in _GREETING_PATTERNS:
-            route = "direct"
-        elif len(query) < 3:
-            route = "clarify"
-        elif any(marker in query for marker in _RESEARCH_MARKERS):
-            route = "research_rag"
-        else:
-            route = "fast_rag"
+        route = _route_for_query(query)
         intent = classify_intent(query, [])
         return {
             "route": route,
@@ -203,6 +214,8 @@ class AgentRuntime:
         result = self.assistant.ask(
             state.get("normalized_query", ""),
             session_id=state.get("conversation_id", "default"),
+            dense_hits=state.get("dense_hits", []),
+            dense_diagnostics=state.get("dense_diagnostics", {}),
         )
         return {
             "answer": result.answer,
@@ -258,6 +271,19 @@ class AgentRuntime:
 
 def _append_trace(state: AgentState, node: str, **details: Any) -> list[dict[str, Any]]:
     return [*state.get("trace", []), {"node": node, **details}]
+
+
+def _route_for_query(query: str) -> AgentRoute:
+    folded = query.casefold().strip("!?！？。,.， ")
+    if not query:
+        return "clarify"
+    if folded in _GREETING_PATTERNS:
+        return "direct"
+    if len(query) < 3:
+        return "clarify"
+    if any(marker in query for marker in _RESEARCH_MARKERS):
+        return "research_rag"
+    return "fast_rag"
 
 
 def _json_safe(value: Any) -> Any:

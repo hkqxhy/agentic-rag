@@ -52,6 +52,8 @@ class RAGConfig:
     llm_api_key: str = "EMPTY"
     llm_model: str = "qwen-plus"
     llm_timeout: float = 30.0
+    dense_rrf_weight: float = 1.0
+    dense_min_similarity: float = 0.45
 
     def __post_init__(self) -> None:
         self.root = self.root.resolve()
@@ -95,4 +97,8 @@ class RAGConfig:
             llm_api_key=os.getenv("AGENTIC_RAG_LLM_API_KEY", "EMPTY"),
             llm_model=os.getenv("AGENTIC_RAG_LLM_MODEL", "qwen-plus"),
             llm_timeout=float(os.getenv("AGENTIC_RAG_LLM_TIMEOUT", "30")),
+            dense_rrf_weight=float(os.getenv("AGENTIC_RAG_DENSE_RRF_WEIGHT", "1.0")),
+            dense_min_similarity=float(
+                os.getenv("AGENTIC_RAG_DENSE_MIN_SIMILARITY", "0.45")
+            ),
         )

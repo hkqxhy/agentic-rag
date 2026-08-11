@@ -62,12 +62,26 @@ class Candidate:
 class AdvancedRetriever:
     """A campus-domain RAG retriever with query fusion and evidence grading."""
 
-    def __init__(self, chunks: list[KnowledgeChunk]):
+    def __init__(
+        self,
+        chunks: list[KnowledgeChunk],
+        dense_rrf_weight: float = 1.0,
+        dense_min_similarity: float = 0.45,
+    ):
         self.chunks = chunks
         self.base = Retriever(chunks)
+        self.dense_rrf_weight = dense_rrf_weight
+        self.dense_min_similarity = dense_min_similarity
         self.last_diagnostics: dict[str, Any] = {}
 
-    def search(self, query: str, top_k: int = 5, candidate_k: int = 40) -> list[SearchHit]:
+    def search(
+        self,
+        query: str,
+        top_k: int = 5,
+        candidate_k: int = 40,
+        dense_hits: list[SearchHit] | None = None,
+        dense_diagnostics: dict[str, Any] | None = None,
+    ) -> list[SearchHit]:
         query = normalize_text(query)
         if not self.chunks or not query:
             self.last_diagnostics = _empty_diagnostics(query)
@@ -75,12 +89,18 @@ class AdvancedRetriever:
 
         plan = build_query_plan(query)
         candidates = self._fusion_search(plan, candidate_k)
+        candidates = self._add_dense_candidates(candidates, dense_hits or [], candidate_k)
         hits = self._finalize_candidates(query, plan, candidates, top_k, corrective=False)
         diagnostics = self._diagnose(query, plan, hits, corrective=False)
 
         if self._needs_corrective_pass(diagnostics, hits):
             corrected_plan = add_corrective_queries(plan)
             candidates = self._fusion_search(corrected_plan, max(candidate_k, top_k * 12))
+            candidates = self._add_dense_candidates(
+                candidates,
+                dense_hits or [],
+                max(candidate_k, top_k * 12),
+            )
             hits = self._finalize_candidates(
                 query,
                 corrected_plan,
@@ -90,8 +110,43 @@ class AdvancedRetriever:
             )
             diagnostics = self._diagnose(query, corrected_plan, hits, corrective=True)
 
+        diagnostics["dense"] = dense_diagnostics or {"mode": "off", "status": "disabled"}
+        if dense_hits:
+            diagnostics["mode"] = "hybrid_dense_sparse_rag"
         self.last_diagnostics = diagnostics
         return hits
+
+    def _add_dense_candidates(
+        self,
+        candidates: list[Candidate],
+        dense_hits: list[SearchHit],
+        candidate_k: int,
+    ) -> list[Candidate]:
+        by_chunk = {candidate.chunk.id: candidate for candidate in candidates}
+        for rank, hit in enumerate(dense_hits[:candidate_k], start=1):
+            candidate = by_chunk.get(hit.chunk.id)
+            if candidate is None:
+                candidate = Candidate(chunk=hit.chunk)
+                by_chunk[hit.chunk.id] = candidate
+            similarity = max(-1.0, min(1.0, float(hit.score)))
+            candidate.fusion_score += self.dense_rrf_weight / (RRF_K + rank)
+            candidate.best_rank = min(candidate.best_rank, rank)
+            candidate.signals["dense_similarity"] = max(
+                similarity,
+                candidate.signals.get("dense_similarity", -1.0),
+            )
+            candidate.signals["dense_rank"] = float(rank)
+            candidate.signals["dense_support"] = 1.0
+        merged = list(by_chunk.values())
+        merged.sort(
+            key=lambda item: (
+                item.fusion_score,
+                item.signals.get("dense_similarity", -1.0),
+                item.best_base_score,
+            ),
+            reverse=True,
+        )
+        return merged[: max(candidate_k * 2, 28)]
 
     def _fusion_search(self, plan: QueryPlan, candidate_k: int) -> list[Candidate]:
         by_chunk: dict[str, Candidate] = {}
@@ -166,6 +221,7 @@ class AdvancedRetriever:
             route = route_match(chunk, plan.route_terms)
             direct_answer = direct_answer_fit(query, chunk)
             multi_query = min(1.0, candidate.query_hits / max(1, len(plan.variants)))
+            dense_similarity = max(0.0, candidate.signals.get("dense_similarity", 0.0))
             final = (
                 0.62 * min(1.0, candidate.best_base_score)
                 + 2.35 * candidate.fusion_score
@@ -176,6 +232,7 @@ class AdvancedRetriever:
                 + 0.05 * density
                 + 0.05 * multi_query
                 + 0.035 * freshness
+                + 0.12 * dense_similarity
             )
             signals = dict(candidate.signals)
             signals.update(
@@ -190,6 +247,7 @@ class AdvancedRetriever:
                     "route_match": route,
                     "multi_query_support": multi_query,
                     "corrective_pass": 1.0 if corrective else 0.0,
+                    "dense_similarity": dense_similarity,
                 }
             )
             scored.append((candidate, max(0.0, final), signals))
@@ -232,6 +290,7 @@ class AdvancedRetriever:
         freshness = average_signal(hits[:3], "freshness")
         route = average_signal(hits[:3], "route_match")
         multi_query = average_signal(hits[:3], "multi_query_support")
+        semantic_support = average_signal(hits[:3], "dense_similarity")
         diversity = len({hit.chunk.source for hit in hits}) / max(1, len(hits))
         stale = any(hit.signals.get("freshness", 0.0) < -0.05 for hit in hits[:3])
 
@@ -243,7 +302,8 @@ class AdvancedRetriever:
             + 0.08 * multi_query
             + 0.06 * route
             + 0.04 * min(1.0, margin / 0.20)
-            + 0.02 * max(0.0, freshness),
+            + 0.02 * max(0.0, freshness)
+            + 0.12 * semantic_support,
             0.0,
             1.0,
         )
@@ -251,7 +311,7 @@ class AdvancedRetriever:
         reasons: list[str] = []
         if top_score < 0.16:
             reasons.append("low_top_score")
-        if coverage < 0.10:
+        if coverage < 0.10 and semantic_support < self.dense_min_similarity:
             reasons.append("low_query_coverage")
         if authority < 0.35:
             reasons.append("weak_source_authority")
@@ -260,7 +320,10 @@ class AdvancedRetriever:
         if stale:
             reasons.append("possibly_stale_evidence")
 
-        sufficient = top_score >= 0.15 and quality >= 0.28 and coverage >= 0.06
+        coverage_or_semantic = (
+            coverage >= 0.06 or semantic_support >= self.dense_min_similarity
+        )
+        sufficient = top_score >= 0.15 and quality >= 0.28 and coverage_or_semantic
         if not reasons:
             reasons.append("evidence_passed")
 
@@ -279,6 +342,7 @@ class AdvancedRetriever:
             "freshness": round(freshness, 4),
             "source_diversity": round(diversity, 4),
             "multi_query_support": round(multi_query, 4),
+            "semantic_support": round(semantic_support, 4),
             "route_match": round(route, 4),
             "reasons": reasons,
             "recommended_action": "answer" if sufficient else "clarify_or_verify",
@@ -402,7 +466,14 @@ def source_authority(chunk: KnowledgeChunk) -> float:
     haystack = f"{source}/{category_path}/{chunk.title}/{chunk.content[:300]}"
     kind = str(chunk.metadata.get("kind", ""))
 
-    score = 0.42
+    explicit_authority = {
+        "official": 0.86,
+        "maintained": 0.72,
+        "community": 0.46,
+        "opinion": 0.30,
+        "fixture": 0.50,
+    }.get(str(chunk.metadata.get("authority_level", "")), 0.42)
+    score = explicit_authority
     if kind == "qa":
         score += 0.12
     elif kind == "pdf":
