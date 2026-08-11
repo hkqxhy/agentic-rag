@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from agentic_rag.agent.runtime import AgentRuntime
 from agentic_rag.knowledge.dense import serialize_vector
 from agentic_rag.knowledge.embedding import EmbeddingClient, EmbeddingError
+from agentic_rag.knowledge.evaluate import corpus_case_coverage, load_retrieval_cases
 from agentic_rag.settings import Settings
 from agentic_rag_v1.advanced import AdvancedRetriever
 from agentic_rag_v1.schema import KnowledgeChunk, SearchHit
@@ -102,3 +105,41 @@ def test_direct_and_clarification_routes_skip_dense_retrieval() -> None:
     assert AgentRuntime.requires_retrieval("你好") is False
     assert AgentRuntime.requires_retrieval("？") is False
     assert AgentRuntime.requires_retrieval("校园卡丢了怎么办") is True
+
+
+def test_fixture_retrieval_suite_matches_sanitized_corpus(tmp_path: Path) -> None:
+    cases, source = load_retrieval_cases(tmp_path, "fixture")
+    chunks = [
+        KnowledgeChunk(
+            id="fixture-demo",
+            title="Agentic RAG 演示知识",
+            source="/app/knowledge/fixtures/demo_faq.md",
+            content="这是测试资料。仓库不保存包含个人信息的原始文件。",
+        )
+    ]
+
+    coverage = corpus_case_coverage(cases, chunks)
+
+    assert source == "builtin:FIXTURE_RETRIEVAL_CASES"
+    assert len(cases) == 4
+    assert coverage["supported_case_count"] == 4
+    assert coverage["coverage"] == 1.0
+
+
+def test_formal_suite_reports_zero_corpus_coverage_for_fixture_only_corpus(
+    tmp_path: Path,
+) -> None:
+    cases, _ = load_retrieval_cases(tmp_path, "smoke")
+    chunks = [
+        KnowledgeChunk(
+            id="fixture-demo",
+            source="/app/knowledge/fixtures/demo_faq.md",
+            content="仅用于自动化测试。",
+        )
+    ]
+
+    coverage = corpus_case_coverage(cases, chunks)
+
+    assert coverage["supported_case_count"] == 0
+    assert coverage["coverage"] == 0.0
+    assert len(coverage["unsupported_case_ids"]) == len(cases)

@@ -12,11 +12,42 @@ from agentic_rag.database import Database
 from agentic_rag.settings import get_settings
 from agentic_rag_v1.advanced import AdvancedRetriever
 from agentic_rag_v1.config import RAGConfig
-from agentic_rag_v1.evaluate import load_eval_cases, source_hit
-from agentic_rag_v1.schema import SearchHit
+from agentic_rag_v1.evaluate import load_eval_cases, source_hit, validate_eval_cases
+from agentic_rag_v1.schema import KnowledgeChunk, SearchHit
 from agentic_rag_v1.storage import load_or_build_chunks
 
 from .dense import DenseRetrievalService
+
+FIXTURE_RETRIEVAL_CASES: list[dict[str, Any]] = [
+    {
+        "id": "fixture_notice_exact",
+        "question": "这是真实的学校通知吗？",
+        "expected_sources": ["demo_faq.md"],
+        "expected_keywords": ["测试资料", "正式资料"],
+        "category": "fixture",
+    },
+    {
+        "id": "fixture_notice_paraphrase",
+        "question": "这份入学安排可以当成学校正式发布的通知吗？",
+        "expected_sources": ["demo_faq.md"],
+        "expected_keywords": ["测试资料", "学校政策"],
+        "category": "fixture",
+    },
+    {
+        "id": "fixture_privacy_exact",
+        "question": "为什么仓库里没有原始知识库？",
+        "expected_sources": ["demo_faq.md"],
+        "expected_keywords": ["个人信息", "受控"],
+        "category": "fixture",
+    },
+    {
+        "id": "fixture_privacy_paraphrase",
+        "question": "代码库为什么不直接保存聊天记录和完整资料？",
+        "expected_sources": ["demo_faq.md"],
+        "expected_keywords": ["个人信息", "源代码仓库"],
+        "category": "fixture",
+    },
+]
 
 
 async def evaluate(
@@ -31,7 +62,14 @@ async def evaluate(
 
     rag_config = RAGConfig.from_env(Path.cwd())
     chunks = load_or_build_chunks(rag_config)
-    cases, case_source = load_eval_cases(rag_config.root, suite=suite)
+    cases, case_source = load_retrieval_cases(rag_config.root, suite)
+    corpus_coverage = corpus_case_coverage(cases, chunks)
+    if corpus_coverage["supported_case_count"] == 0:
+        raise RuntimeError(
+            f"evaluation suite '{suite}' has no expected sources in the loaded corpus; "
+            "use --suite fixture for the repository fixture, or load the formal knowledge "
+            "sources required by this suite"
+        )
     baseline = AdvancedRetriever(chunks)
     hybrid = AdvancedRetriever(
         chunks,
@@ -56,6 +94,9 @@ async def evaluate(
                 dense_diagnostics=dense_result.diagnostics,
             )
             hybrid_ms = (time.perf_counter() - hybrid_started) * 1000
+            hybrid_e2e_ms = hybrid_ms + float(
+                dense_result.diagnostics.get("total_latency_ms", 0.0)
+            )
             rows.extend(
                 [
                     _case_row("lexical_advanced", case, baseline_hits, baseline_ms),
@@ -65,7 +106,7 @@ async def evaluate(
                         dense_result.hits[:top_k],
                         float(dense_result.diagnostics.get("total_latency_ms", 0.0)),
                     ),
-                    _case_row("hybrid_pgvector", case, hybrid_hits, hybrid_ms),
+                    _case_row("hybrid_pgvector", case, hybrid_hits, hybrid_e2e_ms),
                 ]
             )
     finally:
@@ -77,6 +118,7 @@ async def evaluate(
         "case_count": len(cases),
         "embedding_model": settings.embedding_model,
         "embedding_version": settings.embedding_version,
+        "corpus_coverage": corpus_coverage,
         "summary": summarize(rows),
         "results": rows,
     }
@@ -84,6 +126,40 @@ async def evaluate(
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return payload
+
+
+def load_retrieval_cases(root: Path, suite: str) -> tuple[list[dict[str, Any]], str]:
+    if suite == "fixture":
+        return validate_eval_cases(FIXTURE_RETRIEVAL_CASES), "builtin:FIXTURE_RETRIEVAL_CASES"
+    return load_eval_cases(root, suite=suite)
+
+
+def corpus_case_coverage(
+    cases: list[dict[str, Any]],
+    chunks: list[KnowledgeChunk],
+) -> dict[str, Any]:
+    corpus_sources = [
+        {
+            "source": chunk.source,
+            "title": chunk.title,
+            "metadata": chunk.metadata,
+            "content": chunk.content,
+        }
+        for chunk in chunks
+    ]
+    supported_ids = [
+        str(case["id"])
+        for case in cases
+        if source_hit(corpus_sources, list(case["expected_sources"]))
+    ]
+    supported = set(supported_ids)
+    unsupported_ids = [str(case["id"]) for case in cases if str(case["id"]) not in supported]
+    return {
+        "case_count": len(cases),
+        "supported_case_count": len(supported_ids),
+        "coverage": round(len(supported_ids) / max(1, len(cases)), 4),
+        "unsupported_case_ids": unsupported_ids,
+    }
 
 
 def _case_row(

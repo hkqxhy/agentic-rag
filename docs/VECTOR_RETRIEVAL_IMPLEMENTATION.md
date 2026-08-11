@@ -135,9 +135,11 @@ sudo docker compose \
   -f deploy/compose/docker-compose.yml \
   -f deploy/compose/docker-compose.staging.yml \
   exec -T worker python -m agentic_rag.knowledge.evaluate \
-  --suite smoke \
+  --suite fixture \
   --output /tmp/vector-eval.json
 ```
+
+源码仓库默认只包含脱敏fixture，因此部署初验应使用`--suite fixture`。`--suite smoke`内置的14个正式领域问题要求校园卡、体检、培养方案等对应资料已经进入知识库；如果评测集的期望来源在当前语料中一个都不存在，命令会明确失败，而不是输出容易误解的全零召回率。
 
 报告同时输出：
 
@@ -145,7 +147,7 @@ sudo docker compose \
 - `dense_only`；
 - `hybrid_pgvector`。
 
-指标为Recall@1、Recall@3、Recall@5、MRR和平均检索延迟。正式知识库接入后，还应在`eval/cases/`增加口语改写、同义词、缩写、精确系统名、旧政策冲突和越界问题。
+指标为Recall@1、Recall@3、Recall@5、MRR和平均检索延迟。Hybrid延迟包含查询Embedding、pgvector查询和本地融合重排的端到端耗时。正式知识库接入后，还应在`eval/cases/`增加口语改写、同义词、缩写、精确系统名、旧政策冲突和越界问题。
 
 ## 8. ECS安全上线顺序
 
