@@ -1,0 +1,71 @@
+name: Mirror pgvector to Alibaba Cloud ACR
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_tag:
+        description: Official pgvector image tag to mirror
+        required: true
+        default: 0.8.6-pg17-bookworm
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mirror-pgvector-acr
+  cancel-in-progress: false
+
+env:
+  SOURCE_REPOSITORY: pgvector/pgvector
+  ACR_REGISTRY: crpi-bhs8qamkmd5k954o.cn-hangzhou.personal.cr.aliyuncs.com
+  TARGET_REPOSITORY: crpi-bhs8qamkmd5k954o.cn-hangzhou.personal.cr.aliyuncs.com/hkqxhy-agentic-rag/pgvector
+
+jobs:
+  mirror:
+    name: Mirror official image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Validate ACR secrets
+        env:
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+        shell: bash
+        run: |
+          if [[ -z "$ACR_USERNAME" || -z "$ACR_PASSWORD" ]]; then
+            echo "Set ACR_USERNAME and ACR_PASSWORD in repository Actions secrets." >&2
+            exit 1
+          fi
+
+      - name: Pull official pgvector image
+        shell: bash
+        run: docker pull "$SOURCE_REPOSITORY:${{ inputs.source_tag }}"
+
+      - name: Log in to Alibaba Cloud ACR
+        env:
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+        shell: bash
+        run: |
+          printf '%s' "$ACR_PASSWORD" \
+            | docker login --username "$ACR_USERNAME" --password-stdin "$ACR_REGISTRY"
+
+      - name: Tag and push image
+        shell: bash
+        run: |
+          target="$TARGET_REPOSITORY:${{ inputs.source_tag }}"
+          docker tag "$SOURCE_REPOSITORY:${{ inputs.source_tag }}" "$target"
+          docker push "$target"
+          digest="$(docker inspect --format='{{index .RepoDigests 0}}' "$target")"
+          {
+            echo "## pgvector mirror completed"
+            echo
+            echo "- Target: \`$target\`"
+            echo "- Digest: \`$digest\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Log out of ACR
+        if: always()
+        shell: bash
+        run: docker logout "$ACR_REGISTRY" || true

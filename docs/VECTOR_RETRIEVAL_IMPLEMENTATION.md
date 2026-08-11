@@ -175,6 +175,14 @@ pgvector/pgvector:0.8.6-pg17-bookworm
 
 大陆ECS访问Docker Hub不稳定时，先把该镜像导入阿里云ACR个人仓库，再把`POSTGRES_IMAGE`改成ACR地址。不要继续使用不含扩展的`public.ecr.aws/docker/library/postgres:17-alpine`，否则Alembic执行`CREATE EXTENSION vector`会失败。
 
+当前仓库提供手动工作流`.github/workflows/mirror-pgvector-acr.yml`。在GitHub仓库的Actions secrets中设置`ACR_USERNAME`和`ACR_PASSWORD`后，手动运行`Mirror pgvector to Alibaba Cloud ACR`，即可把固定版本官方镜像转存到杭州ACR。工作流不会在普通push时自动运行，也不会把凭证写入代码或日志。
+
+当前测试环境的ACR目标为：
+
+```text
+crpi-bhs8qamkmd5k954o.cn-hangzhou.personal.cr.aliyuncs.com/hkqxhy-agentic-rag/pgvector:0.8.6-pg17-bookworm
+```
+
 ### 8.3 首次部署
 
 保持：
