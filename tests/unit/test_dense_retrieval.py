@@ -83,6 +83,17 @@ def test_dense_mode_requires_embedding_credentials() -> None:
     assert settings.embedding_dimensions == 1024
 
 
+def test_embedding_dimensions_accepts_compose_environment_string(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AGENTIC_RAG_EMBEDDING_DIMENSIONS", "1024")
+
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+
+    assert settings.embedding_dimensions == 1024
+    assert isinstance(settings.embedding_dimensions, int)
+
+
 def test_vector_literal_is_stable_and_compact() -> None:
     assert serialize_vector([0.0, 0.125, -1.0]) == "[0,0.125,-1]"
 

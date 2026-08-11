@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     embedding_base_url: str = ""
     embedding_api_key: str = "EMPTY"
     embedding_model: str = "text-embedding-v4"
-    embedding_dimensions: Literal[1024] = 1024
+    embedding_dimensions: int = Field(default=1024, ge=1024, le=1024)
     embedding_version: str = "text-embedding-v4-1024-v1"
     embedding_timeout_seconds: float = Field(default=15.0, ge=1.0, le=120.0)
     dense_candidate_k: int = Field(default=40, ge=1, le=200)
