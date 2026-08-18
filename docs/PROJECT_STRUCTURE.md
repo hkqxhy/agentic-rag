@@ -28,7 +28,7 @@ agentic-rag/
 │   ├── caddy/                  # 同源反向代理配置
 │   ├── ecs/                    # 部署、入库、恢复和压测脚本
 │   └── env/                    # 不含密钥的环境变量模板
-├── docs/                       # 架构、部署、评测、实施记录和面试手册
+├── docs/                       # 架构、部署、评测、实施记录和技术解析
 ├── .github/workflows/          # CI 与镜像同步工作流
 ├── pyproject.toml              # Python 包、CLI 和质量门禁
 └── pnpm-workspace.yaml         # 前端 workspace

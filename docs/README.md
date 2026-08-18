@@ -1,6 +1,6 @@
 # 文档中心
 
-这里集中保存 Agentic RAG 的架构决策、实现记录、部署步骤、评测证据和面试材料。第一次了解项目时，建议先读根目录 README，再按目标选择下列文档。
+这里集中保存 Agentic RAG 的架构决策、实现记录、部署步骤、评测证据和技术解析。第一次了解项目时，建议先读根目录 README，再按目标选择下列文档。
 
 ## 推荐阅读路线
 
@@ -11,12 +11,11 @@
 3. [pgvector 语义检索实施手册](VECTOR_RETRIEVAL_IMPLEMENTATION.md)
 4. [容量与效果基线](PHASE2_CAPACITY_BASELINE.md)
 
-### 面试准备
+### 深入理解
 
-1. [项目实现细节与面试追问手册](PROJECT_INTERVIEW_GUIDE.md)
+1. [技术实现深度解析](TECHNICAL_DEEP_DIVE.md)
 2. [创新点与工程落地说明](INNOVATIONS.md)
 3. [RAG 效果实验设计](RAG_EVALUATION.md)
-4. [秋招交付与项目价值计划](AUTUMN_RECRUITMENT_DELIVERY_PLAN.md)
 
 ### 部署与运维
 

@@ -1,6 +1,6 @@
 # Phase 2 容量与效果基线
 
-本文记录秋招演示环境的可复现基线。测试环境为阿里云杭州地域 4 核 8 GiB ECS，应用通过 Docker Compose 部署，模型使用阿里云百炼 `qwen-plus`，API 与 Worker 通过 Redis 队列解耦。
+本文记录预生产演示环境的可复现基线。测试环境为阿里云杭州地域 4 核 8 GiB ECS，应用通过 Docker Compose 部署，模型使用阿里云百炼 `qwen-plus`，API 与 Worker 通过 Redis 队列解耦。
 
 ## 真实模型小样本门禁
 

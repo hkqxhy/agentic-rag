@@ -51,7 +51,7 @@ flowchart LR
 5. Worker 持久化回答和 Agent 元数据，并把阶段事件写入 Redis Stream。
 6. 浏览器通过 SSE 接收事件；刷新或短暂断线后可从游标继续读取。
 
-更细的设计取舍见[项目实现细节与面试追问手册](docs/PROJECT_INTERVIEW_GUIDE.md)。
+更细的设计取舍见[技术实现深度解析](docs/TECHNICAL_DEEP_DIVE.md)。
 
 ## 快速启动
 
@@ -142,7 +142,7 @@ agentic-rag/
 ├── tests/                    # 单元、集成、E2E 与检索回归测试
 ├── load/k6/                  # 模型链路和平台链路负载测试
 ├── deploy/                   # 镜像、Compose、Caddy 和 ECS 运维脚本
-├── docs/                     # 架构、评测、部署、实施记录与面试手册
+├── docs/                     # 架构、评测、部署、实施记录与技术解析
 ├── pyproject.toml            # Python 包、CLI 与质量工具配置
 └── pnpm-workspace.yaml       # 前端工作区配置
 ~~~
@@ -173,7 +173,7 @@ docker compose -f deploy/compose/docker-compose.yml config --quiet
 | 阅读目标 | 文档 |
 | --- | --- |
 | 快速了解所有文档 | [文档中心](docs/README.md) |
-| 准备项目面试 | [实现细节与面试追问手册](docs/PROJECT_INTERVIEW_GUIDE.md) |
+| 深入理解实现 | [技术实现深度解析](docs/TECHNICAL_DEEP_DIVE.md) |
 | 理解 Agent 与工程主链路 | [Phase 2 实施记录](docs/PHASE2_IMPLEMENTATION.md) |
 | 理解混合检索和 pgvector | [向量检索实施手册](docs/VECTOR_RETRIEVAL_IMPLEMENTATION.md) |
 | 查看效果实验设计 | [RAG 效果评测](docs/RAG_EVALUATION.md) |
