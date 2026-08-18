@@ -83,7 +83,7 @@ GraphRAG 会从现有 `KnowledgeChunk` 中抽取：
 默认启用：
 
 ```bash
-python agentic_rag_v1_server.py --host 127.0.0.1 --port 8002
+agentic-rag-v1-server --host 127.0.0.1 --port 8002
 ```
 
 重建知识库和图谱：
@@ -96,7 +96,7 @@ python -m agentic_rag_v1.cli --reindex "南大有哪些社团可以参加？"
 
 ```bash
 set AGENTIC_RAG_USE_GRAPHRAG=0
-python agentic_rag_v1_server.py --host 127.0.0.1 --port 8002
+agentic-rag-v1-server --host 127.0.0.1 --port 8002
 ```
 
 ## 工程取舍

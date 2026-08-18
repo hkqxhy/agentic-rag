@@ -2,6 +2,8 @@
 
 本文档用于把 Agentic RAG V1 连接到阿里云百炼/通义千问。你只需要补全 API Key，就可以让项目从“抽取式回答”升级为“千问生成式 RAG 回答”。
 
+> 本文保留给独立检索基线和消融调试。当前 FastAPI、Worker、LangGraph 会话主链路的配置与验证方式见[Agent 与混合检索实施记录](PHASE2_IMPLEMENTATION.md)。
+
 ## 1. 推荐配置
 
 默认推荐使用阿里云百炼的 OpenAI 兼容接口：
@@ -47,7 +49,7 @@ AGENTIC_RAG_LLM_API_KEY=你的阿里云百炼 API Key
 配置好后直接启动：
 
 ```bash
-python agentic_rag_v1_server.py --host 127.0.0.1 --port 8002
+agentic-rag-v1-server --host 127.0.0.1 --port 8002
 ```
 
 `.env.local` 已加入 `.gitignore`，不要把真实 API Key 提交到公开仓库。
@@ -63,7 +65,7 @@ $env:AGENTIC_RAG_LLM_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/
 $env:AGENTIC_RAG_LLM_MODEL = "qwen-plus"
 $env:AGENTIC_RAG_LLM_API_KEY = "sk-xxxx"
 
-python agentic_rag_v1_server.py --host 127.0.0.1 --port 8002
+agentic-rag-v1-server --host 127.0.0.1 --port 8002
 ```
 
 ### Linux / macOS
@@ -73,7 +75,7 @@ export AGENTIC_RAG_LLM_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/
 export AGENTIC_RAG_LLM_MODEL="qwen-plus"
 export AGENTIC_RAG_LLM_API_KEY="sk-xxxx"
 
-python agentic_rag_v1_server.py --host 127.0.0.1 --port 8002
+agentic-rag-v1-server --host 127.0.0.1 --port 8002
 ```
 
 启动后看到类似输出即可：

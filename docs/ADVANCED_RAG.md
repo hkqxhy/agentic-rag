@@ -87,7 +87,7 @@ Agentic RAG 的差异化不应是“又一个通用聊天 RAG”，而是“面�
 ## 如何运行
 
 ```bash
-python agentic_rag_v1_server.py --host 127.0.0.1 --port 8002
+agentic-rag-v1-server --host 127.0.0.1 --port 8002
 ```
 
 打开：

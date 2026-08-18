@@ -42,6 +42,7 @@ dev = [
 agentic-rag-api = "agentic_rag.api.app:run"
 agentic-rag-worker = "agentic_rag.worker:run"
 agentic-rag-v1 = "agentic_rag_v1.cli:main"
+agentic-rag-v1-server = "agentic_rag_v1.api:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -55,7 +56,7 @@ asyncio_mode = "auto"
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-extend-exclude = ["legacy", "src/agentic_rag_v1"]
+extend-exclude = ["src/agentic_rag_v1"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
@@ -67,4 +68,4 @@ disallow_any_generics = true
 no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
-exclude = "^(legacy/|src/agentic_rag_v1/)"
+exclude = "^src/agentic_rag_v1/"
