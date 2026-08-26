@@ -247,7 +247,6 @@ def evaluate_response(
     }
 
 
-
 def _is_published_source(source: dict[str, Any]) -> bool:
     metadata = source.get("metadata") or {}
     authority = str(metadata.get("authority_level") or "")
