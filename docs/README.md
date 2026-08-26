@@ -8,8 +8,9 @@
 
 1. [项目结构与模块边界](PROJECT_STRUCTURE.md)
 2. [Phase 2 Agent 主链路实施记录](PHASE2_IMPLEMENTATION.md)
-3. [pgvector 语义检索实施手册](VECTOR_RETRIEVAL_IMPLEMENTATION.md)
-4. [容量与效果基线](PHASE2_CAPACITY_BASELINE.md)
+3. [正式知识目录与维护规范](../knowledge/official/README.md)
+4. [pgvector 语义检索实施手册](VECTOR_RETRIEVAL_IMPLEMENTATION.md)
+5. [容量与效果基线](PHASE2_CAPACITY_BASELINE.md)
 
 ### 深入理解
 
@@ -31,6 +32,7 @@
 | 架构 | [Advanced RAG](ADVANCED_RAG.md) | 查询规划、多路召回、证据自检和重排 |
 | 架构 | [GraphRAG](GRAPHRAG.md) | 轻量图结构、社区和查询增强 |
 | 架构 | [向量检索](VECTOR_RETRIEVAL_IMPLEMENTATION.md) | pgvector 数据模型、增量入库、灰度和回滚 |
+| 数据治理 | [正式知识目录](../knowledge/official/README.md) | 官方来源、适用边界、发布门禁与人工维护流程 |
 | 工程 | [项目结构](PROJECT_STRUCTURE.md) | 目录职责、发布边界和本地忽略内容 |
 | 工程 | [Phase 1 实施记录](PHASE1_IMPLEMENTATION.md) | 会话产品、异步链路和部署骨架 |
 | 工程 | [Phase 2 实施记录](PHASE2_IMPLEMENTATION.md) | LangGraph、真实模型和检索接入 |
