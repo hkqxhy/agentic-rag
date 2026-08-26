@@ -8,6 +8,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from sqlalchemy import text
 
@@ -43,6 +44,7 @@ async def ingest(
         raise RuntimeError("refusing to publish an empty knowledge index")
 
     prepared = _prepare_chunks(chunks)
+    publication = _validate_publication(settings, prepared)
     database = Database(settings.database_url)
     embedder = EmbeddingClient(
         base_url=settings.embedding_base_url,
@@ -63,6 +65,7 @@ async def ingest(
                 "documents": len({item.document_id for item in prepared}),
                 "chunks": len(prepared),
                 "embeddings_to_generate": len(pending),
+                "publication": publication,
                 "dry_run": True,
             }
 
@@ -80,6 +83,7 @@ async def ingest(
             "embeddings_reused": len(prepared) - len(pending),
             "embedding_model": settings.embedding_model,
             "embedding_version": settings.embedding_version,
+            "publication": publication,
             "dry_run": False,
         }
     finally:
@@ -95,7 +99,9 @@ def _prepare_chunks(chunks: list[KnowledgeChunk]) -> list[PreparedChunk]:
         prepared.append(
             PreparedChunk(
                 chunk=chunk,
-                document_id=_stable_id(chunk.source),
+                document_id=str(
+                    chunk.metadata.get("document_id") or _stable_id(chunk.source)
+                ),
                 chunk_index=index,
                 content_hash=hashlib.sha256(chunk.content.encode("utf-8")).hexdigest(),
             )
@@ -132,6 +138,9 @@ async def _publish(
 
     async with database.session() as session:
         await session.execute(text("UPDATE knowledge_chunks SET status = 'archived'"))
+        await session.execute(
+            text("UPDATE knowledge_documents SET status = 'archived' WHERE status = 'active'")
+        )
         for document_id, items in documents.items():
             first = items[0].chunk
             checksum = hashlib.sha256(
@@ -158,13 +167,20 @@ async def _publish(
                 ),
                 {
                     "id": document_id,
-                    "source_uri": first.source,
+                    "source_uri": str(
+                        first.metadata.get("source_url") or first.source
+                    ),
                     "title": first.title or Path(first.source).name,
                     "status": _document_status(first),
                     "authority": _authority_level(first),
                     "checksum": f"sha256:{checksum}",
                     "metadata": json.dumps(
-                        {"source": first.source}, ensure_ascii=False, sort_keys=True
+                        {
+                            **first.metadata,
+                            "local_source": first.source,
+                        },
+                        ensure_ascii=False,
+                        sort_keys=True,
                     ),
                 },
             )
@@ -233,6 +249,64 @@ async def _publish(
                     },
                 )
         await session.commit()
+
+
+def _validate_publication(
+    settings: Settings,
+    prepared: list[PreparedChunk],
+) -> dict[str, Any]:
+    document_ids = {item.document_id for item in prepared}
+    active_chunks = [
+        item for item in prepared
+        if _document_status(item.chunk) == "active"
+    ]
+    authorities = sorted({_authority_level(item.chunk) for item in prepared})
+    result = {
+        "document_count": len(document_ids),
+        "chunk_count": len(prepared),
+        "active_chunk_count": len(active_chunks),
+        "authorities": authorities,
+    }
+    if settings.environment not in {"staging", "production"}:
+        return result
+
+    invalid: list[str] = []
+    for item in prepared:
+        chunk = item.chunk
+        authority = _authority_level(chunk)
+        status = _document_status(chunk)
+        source_url = str(chunk.metadata.get("source_url") or "")
+        if authority not in {"official", "maintained"}:
+            invalid.append(f"{chunk.source}: authority={authority}")
+        if status != "active":
+            invalid.append(f"{chunk.source}: status={status}")
+        if authority == "official" and not _is_trusted_official_url(source_url):
+            invalid.append(f"{chunk.source}: invalid official source_url")
+
+    if len(document_ids) < settings.knowledge_min_documents:
+        invalid.append(
+            "document gate failed: "
+            f"{len(document_ids)} < {settings.knowledge_min_documents}"
+        )
+    if len(prepared) < settings.knowledge_min_chunks:
+        invalid.append(
+            "chunk gate failed: "
+            f"{len(prepared)} < {settings.knowledge_min_chunks}"
+        )
+    if invalid:
+        detail = "; ".join(dict.fromkeys(invalid))
+        raise RuntimeError(f"knowledge publication rejected: {detail}")
+    return result
+
+
+def _is_trusted_official_url(value: str) -> bool:
+    parsed = urlparse(value)
+    hostname = (parsed.hostname or "").casefold()
+    return (
+        parsed.scheme == "https"
+        and bool(hostname)
+        and (hostname == "nju.edu.cn" or hostname.endswith(".nju.edu.cn"))
+    )
 
 
 def _stable_id(value: str) -> str:
