@@ -1,0 +1,40 @@
+name: Evaluation quality
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/evaluation-quality.yml'
+      - 'eval/cases/staging_comprehensive.jsonl'
+      - 'src/agentic_rag/evaluation/**'
+      - 'tests/unit/test_staging_evaluation.py'
+      - 'pyproject.toml'
+  pull_request:
+    paths:
+      - 'eval/cases/staging_comprehensive.jsonl'
+      - 'src/agentic_rag/evaluation/**'
+      - 'tests/unit/test_staging_evaluation.py'
+      - 'pyproject.toml'
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Validate JSONL dataset
+        run: python -c "import json, pathlib; p=pathlib.Path('eval/cases/staging_comprehensive.jsonl'); rows=[json.loads(x) for x in p.read_text(encoding='utf-8').splitlines() if x.strip()]; assert len(rows) == 48; assert len({r['id'] for r in rows}) == len(rows); print(f'validated {len(rows)} cases')"
+      - name: Ruff
+        run: ruff check src/agentic_rag/evaluation tests/unit/test_staging_evaluation.py
+      - name: Mypy
+        run: mypy src/agentic_rag/evaluation
+      - name: Unit tests
+        run: pytest -q tests/unit/test_staging_evaluation.py
