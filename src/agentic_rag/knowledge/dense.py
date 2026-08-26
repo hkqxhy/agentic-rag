@@ -69,7 +69,10 @@ class DenseRetrievalService:
                             1 - (e.embedding <=> CAST(:embedding AS vector)) AS similarity
                         FROM knowledge_embeddings AS e
                         JOIN knowledge_chunks AS c ON c.id = e.chunk_id
+                        JOIN knowledge_documents AS d ON d.id = c.document_id
                         WHERE c.status = 'active'
+                          AND d.status = 'active'
+                          AND d.authority_level IN ('official', 'maintained')
                           AND e.embedding_model = :embedding_model
                           AND e.embedding_version = :embedding_version
                         ORDER BY e.embedding <=> CAST(:embedding AS vector)
