@@ -16,20 +16,26 @@ if grep -Eq '203\.0\.113\.10|replace-with-' "$env_file"; then
   exit 1
 fi
 
-docker compose \
-  --env-file "$env_file" \
-  -f "$base_compose" \
-  -f "$staging_compose" \
-  config --quiet
+compose=(
+  docker compose
+  --env-file "$env_file"
+  -f "$base_compose"
+  -f "$staging_compose"
+)
 
-docker compose \
-  --env-file "$env_file" \
-  -f "$base_compose" \
-  -f "$staging_compose" \
-  up --build --detach --remove-orphans --wait --wait-timeout 180
+"${compose[@]}" config --quiet
+"${compose[@]}" up --build --detach --remove-orphans --wait --wait-timeout 180
 
-docker compose \
-  --env-file "$env_file" \
-  -f "$base_compose" \
-  -f "$staging_compose" \
-  ps
+if [[ "${SKIP_KNOWLEDGE_INGEST:-0}" != "1" ]]; then
+  echo "Publishing the reviewed knowledge corpus..."
+  "${compose[@]}" exec -T worker python -m agentic_rag.knowledge.ingest
+fi
+
+echo "Published knowledge summary:"
+"${compose[@]}" exec -T postgres \
+  psql -U agentic_rag -d agentic_rag -v ON_ERROR_STOP=1 \
+  -c "SELECT status, authority_level, COUNT(*) FROM knowledge_documents GROUP BY status, authority_level ORDER BY status, authority_level;" \
+  -c "SELECT COUNT(*) AS active_chunks FROM knowledge_chunks c JOIN knowledge_documents d ON d.id = c.document_id WHERE c.status = 'active' AND d.status = 'active' AND d.authority_level IN ('official', 'maintained');" \
+  -c "SELECT COUNT(*) AS active_embeddings FROM knowledge_embeddings e JOIN knowledge_chunks c ON c.id = e.chunk_id JOIN knowledge_documents d ON d.id = c.document_id WHERE c.status = 'active' AND d.status = 'active' AND d.authority_level IN ('official', 'maintained');"
+
+"${compose[@]}" ps
