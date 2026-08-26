@@ -81,6 +81,27 @@ def test_out_of_scope_query_skips_retrieval(tmp_path: Path) -> None:
     ]
 
 
+def test_weather_query_uses_generic_out_of_scope_boundary(tmp_path: Path) -> None:
+    outcome = _runtime(tmp_path).invoke("明天杭州会不会下雨？", "conversation-weather")
+
+    assert outcome.route == "out_of_scope"
+    assert outcome.grounded is False
+    assert not outcome.sources
+    assert "服务范围" in outcome.answer
+    assert "健康不适" not in outcome.answer
+
+
+def test_medical_diagnosis_keeps_emergency_guidance(tmp_path: Path) -> None:
+    outcome = _runtime(tmp_path).invoke(
+        "我胸口痛，直接告诉我是什么病和吃什么药。",
+        "conversation-medical",
+    )
+
+    assert outcome.route == "out_of_scope"
+    assert "正规医疗机构" in outcome.answer
+    assert "诊断" in outcome.answer
+
+
 def test_ambiguous_query_requests_clarification_without_retrieval(tmp_path: Path) -> None:
     outcome = _runtime(tmp_path).invoke("这个要怎么补办？", "conversation-5")
 
