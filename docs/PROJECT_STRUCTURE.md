@@ -13,7 +13,8 @@ agentic-rag/
 │   └── agentic_rag_v1/         # 被当前 runtime 复用的检索与评测内核
 ├── migrations/                 # Alembic 关系模型与 pgvector 迁移
 ├── knowledge/
-│   ├── fixtures/               # 脱敏的最小演示知识
+│   ├── official/               # 经官方页面核验的可发布结构化摘要
+│   ├── fixtures/               # 仅供测试、线上强制隔离的演示知识
 │   ├── manifests/              # 知识来源与版本约定
 │   └── schemas/                # 文档元数据 JSON Schema
 ├── eval/cases/                 # 版本化效果测试集
@@ -40,7 +41,8 @@ agentic-rag/
 - `src/agentic_rag/api` 负责认证、所有权、幂等、限流和任务受理，不执行长时间模型推理。
 - `src/agentic_rag/worker.py` 消费任务并驱动 Agent，把状态写入 PostgreSQL 和 Redis Stream。
 - `src/agentic_rag/agent` 定义有界状态图、路由、回答生成和证据核验。
-- `src/agentic_rag/knowledge` 负责 Embedding、pgvector 检索、知识入库和检索评测。
+- `src/agentic_rag/knowledge` 负责 Embedding、pgvector 检索、发布门禁、增量知识入库和检索评测。
+- `knowledge/official` 每个条目都携带文档 ID、状态、权威度、官方来源、核验日期、受众和时效范围；README、草稿与 fixture 不进入线上索引。
 - `src/agentic_rag_v1` 保存词法、Advanced RAG 和 GraphRAG 内核。名称用于维持消融基线，当前主链路仍会复用这些模块。
 
 早期、机器相关且不参与构建的实验脚本已经从主分支删除。需要研究项目演进时，以 `docs/REBUILD_PLAN_V1.md` 和 Git 历史为准。
