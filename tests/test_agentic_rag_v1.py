@@ -22,15 +22,15 @@ from agentic_rag_v1.service import NewStudentAssistant
 
 
 class AgenticRAGV1Tests(unittest.TestCase):
-    def test_config_uses_sanitized_fixture_when_raw_sources_are_absent(self) -> None:
+    def test_config_uses_official_corpus_when_raw_sources_are_absent(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            fixture_dir = root / "knowledge" / "fixtures"
-            fixture_dir.mkdir(parents=True)
+            official_dir = root / "knowledge" / "official"
+            official_dir.mkdir(parents=True)
 
             config = RAGConfig(root=root)
 
-        self.assertEqual(config.source_paths, [fixture_dir])
+        self.assertEqual(config.source_paths, [official_dir])
 
     def test_config_loads_env_local(self) -> None:
         keys = ["AGENTIC_RAG_LLM_BASE_URL", "AGENTIC_RAG_LLM_MODEL", "AGENTIC_RAG_LLM_API_KEY"]

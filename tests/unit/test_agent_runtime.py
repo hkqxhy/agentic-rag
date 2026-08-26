@@ -72,7 +72,7 @@ def test_out_of_scope_query_skips_retrieval(tmp_path: Path) -> None:
     assert outcome.need_clarification is False
     assert outcome.grounded is False
     assert not outcome.sources
-    assert "新生校务" in outcome.answer
+    assert "新生事务" in outcome.answer
     assert [step["node"] for step in outcome.trace] == [
         "normalize",
         "classify",

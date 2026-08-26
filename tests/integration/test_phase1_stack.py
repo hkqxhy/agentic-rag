@@ -59,8 +59,8 @@ async def test_pgvector_dense_retrieval_round_trip() -> None:
                     """
                     INSERT INTO knowledge_documents (
                         id, source_uri, title, status, authority_level, checksum, metadata
-                    ) VALUES (:id, :source, 'Dense test', 'test_only', 'fixture',
-                              :checksum, '{}'::jsonb)
+                    ) VALUES (:id, :source, 'Dense test', 'active', 'official',
+                              :checksum, '{"authority_level":"official","status":"active"}'::jsonb)
                     """
                 ),
                 {"id": document_id, "source": document_id, "checksum": f"sha256:{'0' * 64}"},
@@ -73,7 +73,8 @@ async def test_pgvector_dense_retrieval_round_trip() -> None:
                         metadata, content_hash, status
                     ) VALUES (
                         :id, :document_id, 0, '校园卡挂失补办流程', '校园卡',
-                        :source, '{}'::jsonb, :content_hash, 'active'
+                        :source, '{"authority_level":"official","status":"active"}'::jsonb,
+                            :content_hash, 'active'
                     )
                     """
                 ),

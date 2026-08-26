@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import re
 import statistics
@@ -410,7 +411,6 @@ class StagingEvaluator:
             )
             response.raise_for_status()
             conversation_id = str(response.json()["id"])
-            assistant_count = 0
             assistant: dict[str, Any] | None = None
             for turn_index, question in enumerate(case.questions):
                 response = client.post(
@@ -430,9 +430,8 @@ class StagingEvaluator:
                 assistant = self._wait_for_new_assistant(
                     client,
                     conversation_id,
-                    assistant_count,
+                    turn_index,
                 )
-                assistant_count += 1
             if assistant is None:
                 raise RuntimeError("conversation produced no assistant message")
             latency_ms = (time.monotonic() - started) * 1000
@@ -466,10 +465,8 @@ class StagingEvaluator:
             }
         finally:
             if conversation_id:
-                try:
+                with contextlib.suppress(httpx.HTTPError):
                     client.delete(f"/api/v1/conversations/{conversation_id}")
-                except httpx.HTTPError:
-                    pass
 
 
 def run_evaluation(

@@ -17,25 +17,37 @@ from agentic_rag_v1.service import (
 )
 
 
-def test_fixture_effect_suite_passes_without_model_cost(tmp_path: Path) -> None:
-    fixture = tmp_path / "knowledge.md"
-    fixture.write_text(
-        "# Agentic RAG 演示知识\n\n"
-        "## 这是真实的学校通知吗？\n\n"
-        "不是。本文件是自动化测试资料，仅用于验证检索和引用。\n\n"
-        "## 为什么仓库里没有原始知识库？\n\n"
-        "原始资料可能包含个人信息，因此通过受控摄取接口维护。\n",
+def test_official_effect_suite_passes_without_model_cost(tmp_path: Path) -> None:
+    official = tmp_path / "knowledge" / "official"
+    official.mkdir(parents=True)
+    document = official / "student-services.md"
+    document.write_text(
+        """---
+document_id: official-student-services
+title: 校园卡与统一身份认证
+authority_level: official
+status: active
+source_url: https://itsc.nju.edu.cn/21469/listm.htm
+---
+
+# 校园卡与统一身份认证
+
+校园卡弄丢后应先挂失，再携带有效身份证件按官方流程补办。
+
+统一身份认证密码忘记后，应在认证页面选择忘记密码，通过绑定的手机号或邮箱重置。
+""",
         encoding="utf-8",
     )
     runtime = AgentRuntime(
         RAGConfig(
             root=tmp_path,
-            source_paths=[fixture],
+            source_paths=[official],
             index_dir=tmp_path / "index",
             use_cache=False,
             use_graphrag=False,
             min_confidence=0.01,
             llm_base_url="",
+            allow_test_knowledge=False,
         )
     )
 
