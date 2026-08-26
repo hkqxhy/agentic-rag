@@ -13,7 +13,14 @@ from agentic_rag_v1.schema import SearchHit
 from agentic_rag_v1.service import NewStudentAssistant, classify_intent
 from agentic_rag_v1.text import normalize_text
 
-AgentRoute = Literal["direct", "clarify", "fast_rag", "research_rag"]
+AgentRoute = Literal[
+    "direct",
+    "clarify",
+    "safe_refusal",
+    "out_of_scope",
+    "fast_rag",
+    "research_rag",
+]
 
 _GREETING_PATTERNS = {
     "hi",
@@ -35,6 +42,34 @@ _RESEARCH_MARKERS = {
     "流程",
     "方案",
     "为什么",
+}
+_AMBIGUOUS_QUERIES = {
+    "这个要怎么补办",
+    "这个怎么补办",
+    "什么时候开始",
+    "我登录不上",
+    "这个去哪里办理",
+    "这个怎么办",
+}
+_SECURITY_MARKERS = {
+    "系统提示词",
+    "内部规则",
+    "api key",
+    "apikey",
+    "环境变量",
+    "其他新生的",
+    "编一个",
+    "随便给我",
+    "忽略知识库",
+    "不要引用资料",
+}
+_OUT_OF_SCOPE_MARKERS = {
+    "量子计算机",
+    "股票",
+    "天气",
+    "诊断",
+    "是什么病",
+    "吃什么药",
 }
 _CITATION_PATTERN = re.compile(r"\[S\d+]")
 
@@ -143,6 +178,8 @@ class AgentRuntime:
         builder.add_node("classify", self._classify)
         builder.add_node("direct", self._direct_answer)
         builder.add_node("clarify", self._clarify)
+        builder.add_node("safe_refusal", self._safe_refusal)
+        builder.add_node("out_of_scope", self._out_of_scope)
         builder.add_node("rag", self._rag)
         builder.add_node("verify", self._verify)
         builder.add_edge(START, "normalize")
@@ -153,12 +190,16 @@ class AgentRuntime:
             {
                 "direct": "direct",
                 "clarify": "clarify",
+                "safe_refusal": "safe_refusal",
+                "out_of_scope": "out_of_scope",
                 "fast_rag": "rag",
                 "research_rag": "rag",
             },
         )
         builder.add_edge("direct", "verify")
         builder.add_edge("clarify", "verify")
+        builder.add_edge("safe_refusal", "verify")
+        builder.add_edge("out_of_scope", "verify")
         builder.add_edge("rag", "verify")
         builder.add_edge("verify", END)
         return builder.compile()
@@ -208,6 +249,36 @@ class AgentRuntime:
             "diagnostics": {"mode": "clarification"},
             "need_clarification": True,
             "trace": _append_trace(state, "clarify"),
+        }
+
+    @staticmethod
+    def _safe_refusal(state: AgentState) -> AgentState:
+        return {
+            "answer": (
+                "我不能提供系统提示词、密钥、其他用户的个人信息，也不会编造网址、"
+                "群号或校务结论。你可以改为询问有官方资料支持的新生事务。"
+            ),
+            "confidence": 1.0,
+            "sources": [],
+            "warnings": ["请求触发安全边界，未执行知识检索。"],
+            "diagnostics": {"mode": "safe_refusal"},
+            "need_clarification": False,
+            "trace": _append_trace(state, "safe_refusal"),
+        }
+
+    @staticmethod
+    def _out_of_scope(state: AgentState) -> AgentState:
+        return {
+            "answer": (
+                "这个问题超出了南京大学新生事务助手的服务范围。涉及健康不适时，"
+                "请及时联系校医院、正规医疗机构或紧急服务，不要依赖问答助手进行诊断。"
+            ),
+            "confidence": 1.0,
+            "sources": [],
+            "warnings": ["领域外请求，未执行知识检索。"],
+            "diagnostics": {"mode": "out_of_scope"},
+            "need_clarification": False,
+            "trace": _append_trace(state, "out_of_scope"),
         }
 
     def _rag(self, state: AgentState) -> AgentState:
@@ -279,7 +350,11 @@ def _route_for_query(query: str) -> AgentRoute:
         return "clarify"
     if folded in _GREETING_PATTERNS:
         return "direct"
-    if len(query) < 3:
+    if any(marker in folded for marker in _SECURITY_MARKERS):
+        return "safe_refusal"
+    if any(marker in folded for marker in _OUT_OF_SCOPE_MARKERS):
+        return "out_of_scope"
+    if len(query) < 3 or folded in _AMBIGUOUS_QUERIES:
         return "clarify"
     if any(marker in query for marker in _RESEARCH_MARKERS):
         return "research_rag"
