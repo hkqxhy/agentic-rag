@@ -41,6 +41,7 @@ dev = [
 [project.scripts]
 agentic-rag-api = "agentic_rag.api.app:run"
 agentic-rag-worker = "agentic_rag.worker:run"
+agentic-rag-staging-eval = "agentic_rag.evaluation.staging:main"
 agentic-rag-v1 = "agentic_rag_v1.cli:main"
 agentic-rag-v1-server = "agentic_rag_v1.api:main"
 
