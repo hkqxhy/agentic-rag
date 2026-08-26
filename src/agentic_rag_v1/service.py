@@ -63,6 +63,24 @@ HIGH_RISK_CHANNEL_TERMS = (
     "官方邮箱",
 )
 
+PHONE_PATTERN = re.compile(r"(?<!\\d)(?:1[3-9]\\d{9}|0\\d{2,3}[- ]?\\d{7,8})(?!\\d)")
+DATE_PATTERN = re.compile(
+    r"(?:20\\d{2}\\s*年\\s*)?\\d{1,2}\\s*月\\s*\\d{1,2}\\s*日"
+)
+URL_REQUEST_MARKERS = ("网址", "链接", "登录入口", "入口地址")
+PHONE_REQUEST_MARKERS = ("联系电话", "电话号码", "电话是多少", "手机号")
+EXACT_SCHEDULE_MARKERS = ("准确", "具体哪天", "哪间教室", "具体时间", "具体地点", "几点")
+FACT_TOPIC_MARKERS = (
+    "英语分级",
+    "迎新系统",
+    "校园卡",
+    "报到",
+    "体检",
+    "考试",
+    "选课",
+)
+SERVICE_URL_LABELS = ("登录入口", "办理入口", "认证入口", "系统网址", "登录网址", "官方网址")
+
 
 class NewStudentAssistant:
     def __init__(self, config: RAGConfig | None = None):
@@ -146,6 +164,7 @@ class NewStudentAssistant:
             hits,
             allow_test_knowledge=self.config.allow_test_knowledge,
         )
+        hits, diagnostics = _apply_precision_guard(question, hits, diagnostics)
         if not hits:
             diagnostics["sufficient"] = False
             diagnostics["recommended_action"] = "clarify_or_verify"
@@ -230,6 +249,7 @@ class NewStudentAssistant:
             hits,
             allow_test_knowledge=self.config.allow_test_knowledge,
         )
+        hits, diagnostics = _apply_precision_guard(question, hits, diagnostics)
         if not hits:
             diagnostics["sufficient"] = False
             diagnostics["recommended_action"] = "clarify_or_verify"
@@ -534,6 +554,57 @@ class NewStudentAssistant:
 
     def _remember(self, session_id: str, question: str, answer: str) -> None:
         self.history[session_id].append((question, answer))
+
+
+def _apply_precision_guard(
+    question: str,
+    hits: list[SearchHit],
+    diagnostics: dict[str, Any],
+) -> tuple[list[SearchHit], dict[str, Any]]:
+    reason = _precision_guard_reason(question, hits)
+    if not reason:
+        return hits, diagnostics
+
+    guarded = dict(diagnostics)
+    guarded["sufficient"] = False
+    guarded["recommended_action"] = "verify_explicit_official_evidence"
+    reasons = list(guarded.get("reasons") or [])
+    if reason not in reasons:
+        reasons.append(reason)
+    guarded["reasons"] = reasons
+    return [], guarded
+
+
+def _precision_guard_reason(question: str, hits: list[SearchHit]) -> str:
+    if not hits:
+        return ""
+    contents = [hit.chunk.content for hit in hits]
+    combined = "\n".join(contents)
+
+    if any(marker in question for marker in PHONE_REQUEST_MARKERS):
+        if not PHONE_PATTERN.search(combined):
+            return "missing_explicit_phone_evidence"
+
+    if any(marker in question for marker in URL_REQUEST_MARKERS):
+        labeled_url = any(
+            extract_urls(line)
+            and any(label in line for label in SERVICE_URL_LABELS)
+            for content in contents
+            for line in content.splitlines()
+        )
+        if not labeled_url:
+            return "missing_explicit_service_url_evidence"
+
+    if any(marker in question for marker in EXACT_SCHEDULE_MARKERS):
+        topics = [marker for marker in FACT_TOPIC_MARKERS if marker in question]
+        if topics and not any(topic in combined for topic in topics):
+            return "missing_exact_topic_evidence"
+        if ("哪天" in question or "时间" in question or "几点" in question) and not DATE_PATTERN.search(
+            combined
+        ):
+            return "missing_exact_schedule_evidence"
+
+    return ""
 
 
 def _eligible_chunks(

@@ -34,6 +34,10 @@ REFUSAL_MARKERS = (
     "不提供",
     "不会提供",
     "资料库里没有",
+    "资料中未提供",
+    "未提供",
+    "未明确",
+    "超出了南京大学新生事务助手的服务范围",
     "请以学校最新官方通知为准",
     "建议以学校最新官方通知为准",
 )
@@ -417,9 +421,7 @@ class StagingEvaluator:
                     f"/api/v1/conversations/{conversation_id}/messages",
                     json={"content": question},
                     headers={
-                        "Idempotency-Key": (
-                            f"eval-{case.case_id}-{turn_index}-{uuid.uuid4().hex}"
-                        )
+                        "Idempotency-Key": f"eval-{uuid.uuid4().hex}"
                     },
                 )
                 if response.status_code != 202:
