@@ -16,8 +16,8 @@ Agentic RAG 是一个面向高校新生事务的证据约束型问答系统。�
 
 ### 2.1 已经实现
 
-- LangGraph 有界状态图：normalize、classify、direct、clarify、rag、verify。
-- 四种路由：直接回答、澄清、快速 RAG、研究型 RAG。
+- LangGraph 有界状态图：normalize、classify、direct、clarify、safe_refusal、out_of_scope、rag、verify。
+- 六种路由：直接回答、歧义澄清、安全拒绝、领域外边界、快速 RAG、研究型 RAG。
 - 多格式资料加载：QA/JSON、Markdown、TXT、CSV、DOCX、PDF。
 - BM25、字符 n-gram 与 pgvector Dense 混合召回、RRF 融合、领域重排。
 - 多查询改写、纠错检索、来源权威度、时效性、证据密度和多样性诊断。
@@ -34,10 +34,10 @@ Agentic RAG 是一个面向高校新生事务的证据约束型问答系统。�
 
 ### 2.2 尚未实现或不能夸大的部分
 
-- 当前代码已加入pgvector与`text-embedding-v4`，但ECS需要完成备份、镜像迁移、向量入库和Shadow评测后才会从`off`切到`hybrid`，不能把“代码已实现”说成“线上已验证”。
+- pgvector、`text-embedding-v4` 和 hybrid 模式已在 ECS 完成迁移与小规模模型链路验证；当前正式语料扩容后仍需重新生成向量并重跑同一评测集，不能沿用 fixture 阶段的效果结论。
 - 当前没有 cross-encoder reranker，重排是可解释的领域特征加权。
 - 当前 GraphRAG 不是微软 GraphRAG 的完整复刻，不依赖 Neo4j，也没有用 LLM 抽取实体关系或生成正式社区报告。
-- 正式学校知识库尚未接入。仓库只包含脱敏 fixture、manifest schema 和知识治理边界。
+- 已接入首批经南京大学官方页面核验的结构化摘要，覆盖校园卡、身份认证、校园网、图书馆、2026 新生报到与选课、缴费资助等；体检医保、分校区入住材料和快递地址仍有明确缺口。
 - 知识摄取、审核、发布、回滚的完整管理后台仍是后续工作；目前实现了文件加载、缓存重建和元数据契约。
 - 生产 Worker 调用的是非流式模型接口。SSE 传输是真实的，但回答是在模型完整返回后由 Worker 分片推送，不是原生 token streaming。
 - 当前 Redis List 使用 BLPOP，不具备消息确认和 visibility timeout。Worker 在特定崩溃窗口可能留下丢失或卡住的任务，需要后续升级 Redis Streams Consumer Group 或成熟任务队列。
@@ -151,6 +151,8 @@ START
   -> classify
       -> direct
       -> clarify
+      -> safe_refusal
+      -> out_of_scope
       -> rag
   -> verify
   -> END
@@ -175,7 +177,7 @@ START
 - question：原问题。
 - conversation_id：会话标识，用于检索追问上下文。
 - normalized_query：标准化后的查询。
-- route：direct、clarify、fast_rag、research_rag。
+- route：direct、clarify、safe_refusal、out_of_scope、fast_rag、research_rag。
 - intent：身份认证、校园卡、报到、宿舍等领域意图。
 - answer：候选答案。
 - confidence：检索派生置信度。
@@ -205,10 +207,12 @@ normalize_text 会执行：
 
 当前路由是确定性规则：
 
-- 空问题或长度小于 3：clarify。
+- 空问题、短输入或已知指代不清问题：clarify。
 - “你好”“你是谁”等固定问候：direct。
+- 请求系统提示词、密钥、其他用户数据或要求编造网址/群号：safe_refusal。
+- 医疗诊断、股票、天气等非新生校务问题：out_of_scope。
 - 包含“比较、区别、全部、汇总、流程、为什么”等复杂度词：research_rag。
-- 其他问题：fast_rag。
+- 其他校务问题：fast_rag。
 
 fast_rag 和 research_rag 当前都进入同一个 rag 节点，区别主要保存在 route 和 trace 中。它为后续差异化 top_k、图检索深度、模型预算预留了接口。
 
@@ -242,7 +246,7 @@ verify 是最终门：
 1. 检查答案中的 [S1] 形式引用。
 2. 有来源但模型没有引用时，补充参考来源。
 3. direct 路由直接视为 grounded。
-4. RAG 路由必须同时满足“有来源、有引用、不要求澄清”才视为 grounded。
+4. RAG 路由必须同时满足证据充分、引用编号能映射到 sources、来源为 active official/maintained 且不要求澄清，才视为 grounded。
 5. 未 grounded 时追加“以学校官方最新通知为准”的警告。
 
 grounded 不是“答案一定正确”的同义词。它表示答案至少绑定了当前检索证据。事实是否正确还取决于知识源是否有效、检索是否命中和答案是否忠实。
@@ -1231,15 +1235,15 @@ P95=6 秒表示 95% 请求不超过 6 秒，最慢的 5% 可能更久。P95 比�
 
 ### Q19：知识库如何更新
 
-> 当前支持文件解析、fingerprint缓存、manifest schema、受治理的文档/Chunk/Embedding表、content_hash增量向量生成和幂等发布。入库会先生成全部缺失向量，再在数据库事务中发布，并支持Shadow检索和消融评测。正式资料采集、人工审核、可视化差异、审批和一键回滚管理后台仍未实现。
+> 当前正式目录保存经官方页面核验的结构化摘要。加载器解析 front matter 并排除 README/fixture；staging 发布要求 active、official/maintained、南京大学 HTTPS 来源及最小文档/Chunk 数。入库按 content_hash 增量生成向量并事务发布，Dense SQL 和 Agent verify 都会过滤未发布来源。自动采集、可视化差异、审批和一键回滚后台仍未实现。
 
 ### Q20：项目最大的不足
 
-> 三点：正式学校知识仍未接入；pgvector代码已实现但还没有完成ECS真实Embedding评测，也没有学习型reranker；任务队列缺少ACK和visibility timeout。另外模型原生token流、正式监控告警和知识审核后台也需要继续完善。
+> 三点：正式知识目前仍是人工维护的首批覆盖，若没有持续更新会快速产生缺口；当前没有学习型 reranker；任务队列缺少 ACK 和 visibility timeout。另外模型原生 token 流、正式监控告警和知识审核后台也需要继续完善。
 
 ### Q21：如果重新设计你会先改什么
 
-> 先完成pgvector的ECS Shadow评测与正式知识接入，再升级任务可靠性和知识审批发布链路；只有消融证明收益后才加入qwen3-rerank；最后做模型原生流式和多Worker扩容。
+> 先用新的正式语料重建向量并跑覆盖率/安全评测，按失败清单补 P0 知识；随后升级任务可靠性和知识审批回滚链路；只有消融证明收益后才加入 qwen3-rerank，最后做模型原生流式和多 Worker 扩容。
 
 ## 23. 常见术语速查
 
@@ -1322,7 +1326,7 @@ P95=6 秒表示 95% 请求不超过 6 秒，最慢的 5% 可能更久。P95 比�
 - 能否解释SSE恢复以及当前不是真正token流？
 - 能否指出BLPOP队列的可靠性缺口和改进方案？
 - 能否解释100用户压力测试为什么认证变慢？
-- 能否说清正式知识库尚未接入，当前只使用脱敏fixture？
+- 能否说清正式知识的来源、发布门禁、当前覆盖和仍然缺失的场景？
 - 能否给出下一阶段最优先的三项改进？
 
 如果这些问题都能脱稿回答，就能完整解释项目的中后台、AI 应用工程和 Agent/RAG 技术取舍。
