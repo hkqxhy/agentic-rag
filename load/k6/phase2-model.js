@@ -10,8 +10,8 @@ const groundedAnswer = new Rate("agentic_rag_model_grounded_answer");
 const safetyFiltered = new Rate("agentic_rag_model_safety_filtered");
 
 const questions = [
-  "这是真实的学校通知吗？",
-  "为什么仓库里没有原始知识库？",
+  "校园卡弄丢了怎么办？",
+  "统一身份认证密码忘了怎么重置？",
 ];
 
 export const options = {
