@@ -12,7 +12,7 @@ DEFAULT_SOURCE_NAMES = (
     "Documents",
 )
 
-FALLBACK_SOURCE_NAMES = ("knowledge/fixtures",)
+FALLBACK_SOURCE_NAMES = ("knowledge/official",)
 
 
 def _split_paths(value: str) -> list[str]:
@@ -54,6 +54,7 @@ class RAGConfig:
     llm_timeout: float = 30.0
     dense_rrf_weight: float = 1.0
     dense_min_similarity: float = 0.45
+    allow_test_knowledge: bool = True
 
     def __post_init__(self) -> None:
         self.root = self.root.resolve()
@@ -100,5 +101,8 @@ class RAGConfig:
             dense_rrf_weight=float(os.getenv("AGENTIC_RAG_DENSE_RRF_WEIGHT", "1.0")),
             dense_min_similarity=float(
                 os.getenv("AGENTIC_RAG_DENSE_MIN_SIMILARITY", "0.45")
+            ),
+            allow_test_knowledge=(
+                os.getenv("AGENTIC_RAG_ALLOW_TEST_KNOWLEDGE", "1") != "0"
             ),
         )
