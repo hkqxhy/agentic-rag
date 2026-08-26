@@ -606,11 +606,16 @@ def _has_citation(answer: str) -> bool:
 
 
 def _unsupported_urls(answer: str, hits: list[SearchHit]) -> list[str]:
-    evidence_urls = {
-        url.rstrip("/")
-        for hit in hits
-        for url in extract_urls(hit.chunk.content)
-    }
+    evidence_urls: set[str] = set()
+    for hit in hits:
+        values = [
+            *extract_urls(hit.chunk.content),
+            *list(hit.chunk.metadata.get("urls") or []),
+        ]
+        source_url = str(hit.chunk.metadata.get("source_url") or "")
+        if source_url:
+            values.append(source_url)
+        evidence_urls.update(url.rstrip("/") for url in values if url)
     return [
         url
         for url in extract_urls(answer)
