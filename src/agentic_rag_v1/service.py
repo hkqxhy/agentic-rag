@@ -67,7 +67,11 @@ HIGH_RISK_CHANNEL_TERMS = (
 class NewStudentAssistant:
     def __init__(self, config: RAGConfig | None = None):
         self.config = config or RAGConfig.from_env(Path(__file__).resolve().parents[1])
-        self.chunks = load_or_build_chunks(self.config)
+        loaded_chunks = load_or_build_chunks(self.config)
+        self.chunks = _eligible_chunks(
+            loaded_chunks,
+            allow_test_knowledge=self.config.allow_test_knowledge,
+        )
         self.retriever = self._create_retriever()
         self.llm = OpenAICompatibleLLM(
             base_url=self.config.llm_base_url,
@@ -80,7 +84,11 @@ class NewStudentAssistant:
         )
 
     def reindex(self) -> dict[str, Any]:
-        self.chunks = load_or_build_chunks(self.config, force=True)
+        loaded_chunks = load_or_build_chunks(self.config, force=True)
+        self.chunks = _eligible_chunks(
+            loaded_chunks,
+            allow_test_knowledge=self.config.allow_test_knowledge,
+        )
         self.retriever = self._create_retriever(force_graph=True)
         status = {"chunks": len(self.chunks)}
         graph = getattr(self.retriever, "graph", None)
@@ -134,6 +142,17 @@ class NewStudentAssistant:
             dense_diagnostics=dense_diagnostics,
         )
         diagnostics = self._retrieval_diagnostics()
+        hits = _eligible_hits(
+            hits,
+            allow_test_knowledge=self.config.allow_test_knowledge,
+        )
+        if not hits:
+            diagnostics["sufficient"] = False
+            diagnostics["recommended_action"] = "clarify_or_verify"
+            diagnostics["reasons"] = [
+                *list(diagnostics.get("reasons") or []),
+                "no_published_evidence",
+            ]
         confidence = self._blend_confidence(self._confidence(hits), diagnostics)
         intent = classify_intent(rewritten, hits)
         if diagnostics.get("sufficient") is False:
@@ -207,6 +226,17 @@ class NewStudentAssistant:
             candidate_k=self.config.candidate_k,
         )
         diagnostics = self._retrieval_diagnostics()
+        hits = _eligible_hits(
+            hits,
+            allow_test_knowledge=self.config.allow_test_knowledge,
+        )
+        if not hits:
+            diagnostics["sufficient"] = False
+            diagnostics["recommended_action"] = "clarify_or_verify"
+            diagnostics["reasons"] = [
+                *list(diagnostics.get("reasons") or []),
+                "no_published_evidence",
+            ]
         confidence = self._blend_confidence(self._confidence(hits), diagnostics)
         intent = classify_intent(rewritten, hits)
         if diagnostics.get("sufficient") is False:
@@ -504,6 +534,38 @@ class NewStudentAssistant:
 
     def _remember(self, session_id: str, question: str, answer: str) -> None:
         self.history[session_id].append((question, answer))
+
+
+def _eligible_chunks(
+    chunks: list[KnowledgeChunk],
+    *,
+    allow_test_knowledge: bool,
+) -> list[KnowledgeChunk]:
+    if allow_test_knowledge:
+        return chunks
+    return [
+        chunk for chunk in chunks
+        if _is_published_chunk(chunk)
+    ]
+
+
+def _eligible_hits(
+    hits: list[SearchHit],
+    *,
+    allow_test_knowledge: bool,
+) -> list[SearchHit]:
+    if allow_test_knowledge:
+        return hits
+    return [hit for hit in hits if _is_published_chunk(hit.chunk)]
+
+
+def _is_published_chunk(chunk: KnowledgeChunk) -> bool:
+    source = chunk.source.replace("\\", "/").casefold()
+    authority = str(chunk.metadata.get("authority_level") or "maintained")
+    status = str(chunk.metadata.get("status") or "active")
+    if "fixture" in source:
+        return False
+    return authority in {"official", "maintained"} and status == "active"
 
 
 def classify_intent(query: str, hits: list[SearchHit] | list[Any]) -> str:
