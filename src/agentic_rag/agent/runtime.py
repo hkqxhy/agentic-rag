@@ -321,10 +321,25 @@ class AgentRuntime:
             answer = f"{answer}\n\n参考：{references}"
             citations = _CITATION_PATTERN.findall(answer)
         route = state.get("route", "clarify")
+        diagnostics = state.get("diagnostics", {})
+        source_ids = {str(source.get("id") or "") for source in sources}
+        citation_ids = {citation.strip("[]") for citation in citations}
+        citations_valid = bool(citation_ids) and citation_ids.issubset(source_ids)
+        evidence_sufficient = diagnostics.get("sufficient") is not False
+        published_sources = all(_is_published_source(source) for source in sources)
         grounded = route == "direct" or bool(
-            sources and citations and not need_clarification
+            route in {"fast_rag", "research_rag"}
+            and sources
+            and citations_valid
+            and evidence_sufficient
+            and published_sources
+            and not need_clarification
         )
         warnings = list(state.get("warnings", []))
+        if citations and not citations_valid:
+            warnings.append("回答包含无法映射到检索证据的引用编号。")
+        if sources and not published_sources:
+            warnings.append("检索结果包含未发布或测试资料，回答未标记为可信。")
         if route in {"fast_rag", "research_rag"} and not grounded:
             warnings.append("当前知识证据不足，请以学校官方最新通知为准。")
         return {
@@ -338,6 +353,18 @@ class AgentRuntime:
                 citation_count=len(citations),
             ),
         }
+
+
+def _is_published_source(source: dict[str, Any]) -> bool:
+    metadata = source.get("metadata") or {}
+    authority = str(metadata.get("authority_level") or "maintained")
+    status = str(metadata.get("status") or "active")
+    source_path = str(source.get("source") or "").replace("\\", "/").casefold()
+    return (
+        "fixture" not in source_path
+        and authority in {"official", "maintained"}
+        and status == "active"
+    )
 
 
 def _append_trace(state: AgentState, node: str, **details: Any) -> list[dict[str, Any]]:
