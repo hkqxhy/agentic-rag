@@ -12,6 +12,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY knowledge ./knowledge
+COPY eval ./eval
 COPY migrations ./migrations
 COPY alembic.ini ./
 
