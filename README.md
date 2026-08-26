@@ -9,7 +9,7 @@
 
 面向南京大学新生事务的可信问答系统。项目把有界 Agent、混合检索、证据校验、异步任务链路和会话产品整合为一套可部署、可评测、可降级的 Agentic RAG 工程。
 
-仓库包含完整的 Web、API、Worker、数据库迁移、知识入库、评测、负载测试和阿里云 ECS 部署脚本。源码只提供脱敏测试资料，真实学校文件和 API 密钥不会进入 Git。
+仓库包含完整的 Web、API、Worker、数据库迁移、知识入库、评测、负载测试和阿里云 ECS 部署脚本。Git 中保存经官方页面核验的结构化摘要与隔离 fixture；原始文件、用户数据和 API 密钥不会进入仓库。
 
 ## 项目亮点
 
@@ -19,7 +19,7 @@
 | RAG | BM25、字符 n-gram、Dense Retrieval 和轻量 GraphRAG 多路召回，使用加权 RRF 融合并执行证据质量检查 |
 | 向量检索 | PostgreSQL 17 + pgvector + HNSW，支持内容哈希增量入库，以及 off、shadow、hybrid 灰度切换 |
 | 可靠链路 | API 持久化后返回 202，Redis 负责队列、限流、取消信号和可重放事件流，独立 Worker 执行 Agent |
-| 可信回答 | 来源编号、权威度和时效性建模；证据不足时澄清或拒答；模型不可用时回退为抽取式回答 |
+| 可信回答 | 正式知识发布门禁、来源编号、权威度、时效边界与引用映射；证据不足时澄清或拒答；模型不可用时回退为抽取式回答 |
 | 会话产品 | Next.js 实现普通账号、历史会话、搜索、重命名、删除、停止生成、断线续接、主题和移动端布局 |
 | 工程交付 | Docker Compose、Caddy、Alembic、健康探针、OpenTelemetry 接入点、GitHub Actions 和 k6 分层验证 |
 
@@ -102,7 +102,7 @@ docker compose --env-file .env.local -f deploy/compose/docker-compose.yml up --b
 docker compose --env-file .env.local -f deploy/compose/docker-compose.yml exec worker python -m agentic_rag.knowledge.ingest
 ~~~
 
-先在 shadow 模式核对召回结果，再切换为 hybrid。配置说明和回滚方法见[向量检索实施手册](docs/VECTOR_RETRIEVAL_IMPLEMENTATION.md)，独立检索基线的千问调试方式见[V1 千问接入指南](docs/QWEN_API_SETUP.md)。
+预生产发布只接受 `active` 且权威度为 `official/maintained` 的资料；官方条目必须使用南京大学 HTTPS 来源。入库会拒绝空索引、fixture、草稿和低于数量门槛的语料。先在 shadow 模式核对召回结果，再切换为 hybrid。配置说明和回滚方法见[向量检索实施手册](docs/VECTOR_RETRIEVAL_IMPLEMENTATION.md)，独立检索基线的千问调试方式见[V1 千问接入指南](docs/QWEN_API_SETUP.md)。
 
 ## 本地开发
 
@@ -137,7 +137,7 @@ agentic-rag/
 ├── src/agentic_rag/          # API、数据层、Worker、Agent 与 Dense Retrieval
 ├── src/agentic_rag_v1/       # 主链路复用的词法、Advanced RAG 与 GraphRAG 内核
 ├── migrations/               # Alembic 关系表与 pgvector 迁移
-├── knowledge/                # 元数据 schema、manifest 规则和脱敏 fixture
+├── knowledge/                # 官方结构化摘要、元数据契约与隔离 fixture
 ├── eval/cases/               # 版本化效果测试集
 ├── tests/                    # 单元、集成、E2E 与检索回归测试
 ├── load/k6/                  # 模型链路和平台链路负载测试
@@ -182,9 +182,9 @@ docker compose -f deploy/compose/docker-compose.yml config --quiet
 
 ## 数据与能力边界
 
-- Git 只保存知识契约、非敏感 manifest 和脱敏 fixture。原始 PDF、聊天记录、生成索引与真实评测报告均被忽略。
+- Git 保存知识契约、经官方页面核验的非敏感结构化摘要和脱敏 fixture；原始 PDF、聊天记录、生成索引与真实评测报告均被忽略。
 - 当前采用普通账号，不接入学校统一身份认证。
-- 学校资料通过受控摄取接口人工维护，尚未实现自动抓取和自动发布。
+- 学校资料目前通过受控文件流程人工核验和发布；预生产部署会执行发布门禁与增量向量入库，自动抓取、审批后台和一键回滚仍待实现。
 - 当前部署证据来自单机 ECS 和受控压测，不等同于真实生产用户运营记录。
 - 公网演示地址不写死临时 IP；正式长期开放前还需域名、HTTPS、备案和持续运维方案。
 
