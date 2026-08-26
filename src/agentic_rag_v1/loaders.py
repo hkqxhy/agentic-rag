@@ -13,16 +13,69 @@ from .text import chunk_text, extract_urls, normalize_text, stable_hash
 
 
 SUPPORTED_SUFFIXES = {".qa", ".json", ".md", ".txt", ".csv", ".docx", ".pdf"}
+IGNORED_FILE_NAMES = {"readme.md", "readme.txt"}
+NON_PRODUCTION_DIRECTORIES = {"fixtures"}
+LIST_METADATA_FIELDS = {"audience", "campus", "category", "keywords"}
+
+
+def _is_indexable_file(path: Path) -> bool:
+    if not path.is_file() or path.suffix.lower() not in SUPPORTED_SUFFIXES:
+        return False
+    if path.name.casefold() in IGNORED_FILE_NAMES:
+        return False
+    return not any(part.startswith(".") for part in path.parts)
+
+
+def _allow_directory_overviews(path: Path) -> bool:
+    lowered = {part.casefold() for part in path.parts}
+    return not lowered.intersection({"official", "fixtures"})
+
+
+def _parse_front_matter(text: str) -> tuple[dict[str, Any], str]:
+    if not text.startswith("---"):
+        return {}, text
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return {}, text
+    try:
+        closing = next(
+            index for index, line in enumerate(lines[1:], start=1)
+            if line.strip() == "---"
+        )
+    except StopIteration:
+        return {}, text
+
+    metadata: dict[str, Any] = {}
+    for raw_line in lines[1:closing]:
+        line = raw_line.strip()
+        if not line or line.startswith("#") or ":" not in line:
+            continue
+        key, raw_value = line.split(":", 1)
+        key = key.strip()
+        value = raw_value.strip().strip('"').strip("'")
+        if not key:
+            continue
+        if key in LIST_METADATA_FIELDS:
+            metadata[key] = [
+                item.strip() for item in re.split(r"[,，]", value) if item.strip()
+            ]
+        elif value.casefold() in {"true", "false"}:
+            metadata[key] = value.casefold() == "true"
+        else:
+            metadata[key] = value
+    body = "\n".join(lines[closing + 1 :]).strip()
+    return metadata, body
 
 
 def iter_source_files(paths: Iterable[Path]) -> list[Path]:
     files: list[Path] = []
     for path in paths:
         if path.is_dir():
-            for child in sorted(path.rglob("*")):
-                if child.is_file() and child.suffix.lower() in SUPPORTED_SUFFIXES:
-                    files.append(child)
-        elif path.is_file() and path.suffix.lower() in SUPPORTED_SUFFIXES:
+            files.extend(
+                child for child in sorted(path.rglob("*"))
+                if _is_indexable_file(child)
+            )
+        elif _is_indexable_file(path):
             files.append(path)
     return files
 
@@ -32,7 +85,8 @@ def load_sources(paths: Iterable[Path]) -> list[KnowledgeChunk]:
     source_paths = list(paths)
     for path in iter_source_files(source_paths):
         chunks.extend(load_file(path))
-    chunks.extend(load_directory_overviews(source_paths))
+    overview_paths = [path for path in source_paths if _allow_directory_overviews(path)]
+    chunks.extend(load_directory_overviews(overview_paths))
     return chunks
 
 
@@ -92,9 +146,10 @@ def load_file(path: Path) -> list[KnowledgeChunk]:
         return _load_text_chunks(path, text)
     if suffix == ".pdf":
         return _load_pdf(path)
-    else:
-        text = path.read_text(encoding="utf-8", errors="ignore")
-    return _load_text_chunks(path, text)
+
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    metadata, body = _parse_front_matter(text)
+    return _load_text_chunks(path, body, metadata=metadata)
 
 
 def _load_json_qa(path: Path) -> list[KnowledgeChunk]:
@@ -213,11 +268,20 @@ def _load_csv(path: Path) -> list[KnowledgeChunk]:
     return chunks
 
 
-def _load_text_chunks(path: Path, text: str) -> list[KnowledgeChunk]:
-    title = _guess_title(path, text)
+def _load_text_chunks(
+    path: Path,
+    text: str,
+    metadata: dict[str, Any] | None = None,
+) -> list[KnowledgeChunk]:
+    document_metadata = dict(metadata or {})
+    title = str(document_metadata.get("title") or _guess_title(path, text))
+    source_url = str(document_metadata.get("source_url") or "")
     chunks: list[KnowledgeChunk] = []
     for index, content in enumerate(chunk_text(text), start=1):
         chunk_id = stable_hash(f"{path}:{index}:{content}")
+        urls = extract_urls(content)
+        if source_url and source_url not in urls:
+            urls.append(source_url)
         chunks.append(
             KnowledgeChunk(
                 id=chunk_id,
@@ -225,10 +289,14 @@ def _load_text_chunks(path: Path, text: str) -> list[KnowledgeChunk]:
                 source=str(path),
                 title=title or f"{path.name}#{index}",
                 metadata={
+                    **document_metadata,
                     "kind": "document",
                     "index": index,
-                    "category_path": _category_path(path),
-                    "urls": extract_urls(content),
+                    "category_path": (
+                        str(document_metadata.get("topic") or "")
+                        or _category_path(path)
+                    ),
+                    "urls": urls,
                 },
             )
         )
