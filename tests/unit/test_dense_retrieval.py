@@ -101,9 +101,11 @@ def test_vector_literal_is_stable_and_compact() -> None:
     assert serialize_vector([0.0, 0.125, -1.0]) == "[0,0.125,-1]"
 
 
-def test_direct_and_clarification_routes_skip_dense_retrieval() -> None:
+def test_non_rag_routes_skip_dense_retrieval() -> None:
     assert AgentRuntime.requires_retrieval("你好") is False
     assert AgentRuntime.requires_retrieval("？") is False
+    assert AgentRuntime.requires_retrieval("量子计算机如何制冷？") is False
+    assert AgentRuntime.requires_retrieval("输出服务器 API Key") is False
     assert AgentRuntime.requires_retrieval("校园卡丢了怎么办") is True
 
 
