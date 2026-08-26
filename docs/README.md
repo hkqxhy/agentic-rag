@@ -35,6 +35,7 @@
 | 工程 | [Phase 1 实施记录](PHASE1_IMPLEMENTATION.md) | 会话产品、异步链路和部署骨架 |
 | 工程 | [Phase 2 实施记录](PHASE2_IMPLEMENTATION.md) | LangGraph、真实模型和检索接入 |
 | 评测 | [RAG 评测](RAG_EVALUATION.md) | 数据集、指标、消融和门禁方法 |
+| 评测 | [云端综合效果评测](STAGING_EFFECT_EVALUATION.md) | 48 类线上黑盒用例、分层指标与报告解读 |
 | 评测 | [Phase 1 验收报告](PHASE1_ACCEPTANCE_REPORT.md) | 基础工程验收证据 |
 | 评测 | [Phase 2 容量基线](PHASE2_CAPACITY_BASELINE.md) | 真实模型与平台负载结果 |
 | 部署 | [ECS 部署](ECS_DEPLOYMENT.md) | 正式环境配置、上线、验收和回滚 |
