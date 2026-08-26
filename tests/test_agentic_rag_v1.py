@@ -232,6 +232,57 @@ class AgenticRAGV1Tests(unittest.TestCase):
         self.assertTrue(result.sources)
         self.assertEqual(result.diagnostics.get("mode"), "graph_rag")
 
+    def test_assistant_abstains_when_requested_phone_is_not_explicit(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "campus-card.md"
+            source.write_text(
+                "# 校园卡服务\n\n校园卡丢失后先挂失，再前往服务大厅补办。\n",
+                encoding="utf-8",
+            )
+            assistant = NewStudentAssistant(
+                RAGConfig(
+                    root=root,
+                    source_paths=[source],
+                    index_dir=root / "index",
+                    use_cache=False,
+                    use_graphrag=False,
+                    min_confidence=0.01,
+                )
+            )
+            result = assistant.ask("校园卡中心的联系电话是多少？")
+
+        self.assertTrue(result.need_clarification)
+        self.assertFalse(result.sources)
+        self.assertIn(
+            "missing_explicit_phone_evidence",
+            result.diagnostics["reasons"],
+        )
+
+    def test_assistant_abstains_when_exact_schedule_topic_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "registration.md"
+            source.write_text(
+                "# 新生报到\n\n新生报到时间为2026年8月22日至23日。\n",
+                encoding="utf-8",
+            )
+            assistant = NewStudentAssistant(
+                RAGConfig(
+                    root=root,
+                    source_paths=[source],
+                    index_dir=root / "index",
+                    use_cache=False,
+                    use_graphrag=False,
+                    min_confidence=0.01,
+                )
+            )
+            result = assistant.ask("今年英语分级考试具体哪天、在哪间教室？")
+
+        self.assertTrue(result.need_clarification)
+        self.assertFalse(result.sources)
+        self.assertIn("missing_exact_topic_evidence", result.diagnostics["reasons"])
+
     def test_loads_external_eval_cases_from_jsonl(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
