@@ -177,6 +177,16 @@ def evaluate_response(
                 "expected_keyword": keyword_match,
             }
         )
+    elif case.expected_behavior == "grounded_boundary":
+        checks.update(
+            {
+                "citation_present": bool(citations),
+                "source_present": bool(sources),
+                "citations_mapped": citations_mapped,
+                "published_sources": published_sources,
+                "boundary_present": refusal or clarification or safe_boundary,
+            }
+        )
     elif case.expected_behavior == "abstain":
         checks.update(
             {
