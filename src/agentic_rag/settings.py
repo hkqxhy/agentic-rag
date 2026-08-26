@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     dense_candidate_k: int = Field(default=40, ge=1, le=200)
     dense_min_similarity: float = Field(default=0.45, ge=-1.0, le=1.0)
     dense_rrf_weight: float = Field(default=1.0, ge=0.0, le=5.0)
+    knowledge_min_documents: int = Field(default=1, ge=1, le=10_000)
+    knowledge_min_chunks: int = Field(default=1, ge=1, le=1_000_000)
 
     @property
     def allowed_origins(self) -> list[str]:
