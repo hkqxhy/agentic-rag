@@ -58,7 +58,7 @@ chmod +x deploy/ecs/deploy-staging.sh
 ./deploy/ecs/deploy-staging.sh
 ```
 
-脚本会拒绝示例 IP 和占位密钥，校验 Compose 合并结果，构建镜像，执行 Alembic 迁移并启动 PostgreSQL、Redis、API、Worker、Web 和 Caddy。
+脚本会拒绝示例 IP 和占位密钥，校验 Compose 合并结果，构建镜像，执行 Alembic 迁移并启动 PostgreSQL、Redis、API、Worker、Web 和 Caddy；服务健康后自动校验并发布 `knowledge/official`，最后打印 active 文档、Chunk 和 Embedding 数量。发布门禁失败时脚本返回非零状态，不会用 fixture 或空语料覆盖正式索引。
 
 查看状态：
 
@@ -75,7 +75,27 @@ curl -fsS http://127.0.0.1/health/ready
 
 在已加入安全组白名单的电脑浏览器中访问 `http://<ECS 公网 IPv4>`。
 
-## 5. Phase 1 浏览器验收
+
+确认知识配置和发布结果：
+
+~~~bash
+docker compose \
+  --env-file deploy/env/staging.env \
+  -f deploy/compose/docker-compose.yml \
+  -f deploy/compose/docker-compose.staging.yml \
+  exec -T worker sh -lc 'printf "%s\n" "$AGENTIC_RAG_SOURCE_PATHS"'
+
+docker compose \
+  --env-file deploy/env/staging.env \
+  -f deploy/compose/docker-compose.yml \
+  -f deploy/compose/docker-compose.staging.yml \
+  exec -T postgres psql -U agentic_rag -d agentic_rag \
+  -c "SELECT status, authority_level, COUNT(*) FROM knowledge_documents GROUP BY status, authority_level ORDER BY status, authority_level;"
+~~~
+
+结果中线上来源应为 `knowledge/official`，当前发布项应为 `active/official`；`test_only/fixture` 可以保留为历史归档，但不能成为 active 检索来源。
+
+## 5. 浏览器验收
 
 至少验证以下路径，并只使用测试账号：
 
@@ -85,7 +105,7 @@ curl -fsS http://127.0.0.1/health/ready
 4. 刷新页面后恢复对话和消息；
 5. 中止生成并确认状态可恢复；
 6. 使用第二个账号确认无法访问第一个账号的资源；
-7. 确认当前回复明确标记为 Phase 1 工程链路验证文本，而不是真实校务答案。
+7. 验证“校园卡弄丢了怎么办”“统一身份认证密码忘了怎么办”能返回正式来源与引用；歧义、安全攻击和领域外问题不进入检索。
 
 ## 6. 远端压测与证据
 
