@@ -7,7 +7,7 @@
 ~~~text
 用户消息 -> PostgreSQL message / run -> Redis queue -> Worker
   -> LangGraph normalize / classify
-  -> direct | clarify | fast_rag | research_rag
+  -> direct | clarify | safe_refusal | out_of_scope | fast_rag | research_rag
   -> BM25 + n-gram + Dense + GraphRAG
   -> Qwen 或抽取式降级
   -> evidence verify -> Redis Stream + PostgreSQL metadata
@@ -21,13 +21,31 @@
 | 节点 | 职责 |
 | --- | --- |
 | normalize | 清理问题并建立稳定的状态字段 |
-| classify | 判断问候、信息缺失、普通检索和复杂检索 |
+| classify | 判断问候、歧义、安全请求、领域边界、普通检索和复杂检索 |
 | direct | 处理无需知识库的确定性回复 |
-| clarify | 在问题或证据不足时请求补充信息 |
+| clarify | 在问题信息不足时请求补充信息，不执行检索 |
+| safe_refusal | 拒绝提示词、密钥、个人数据和要求编造入口的请求 |
+| out_of_scope | 对非新生校务问题给出服务边界，不消耗检索与模型调用 |
 | rag | 执行检索、融合、生成或抽取式降级 |
-| verify | 检查 grounded、引用、URL 和高风险渠道 |
+| verify | 校验引用能否映射到已发布来源，并结合证据充分性决定 grounded |
 
 状态图是有界的，每条路径都有终止节点。节点轨迹会写入消息元数据，便于测试和线上诊断。
+
+
+## 正式知识发布链路
+
+线上默认只加载 `knowledge/official`。Markdown front matter 至少描述 `document_id`、`authority_level`、`status`、`source_url` 和 `retrieved_at`，并为年度资料标记适用受众和有效范围。
+
+发布时执行以下门禁：
+
+1. README、隐藏文件、fixture 和目录概览不参与正式索引。
+2. staging/production 只允许 `active` 的 `official/maintained` 文档。
+3. `official` 来源必须是 `https://*.nju.edu.cn`。
+4. 文档数和 Chunk 数低于环境门槛时拒绝覆盖当前索引。
+5. pgvector 查询同时过滤 Chunk 与 Document 状态，历史和测试向量无法进入候选。
+6. verify 只在引用编号能够映射到已发布来源且检索诊断充分时标记 `grounded=true`。
+
+预生产部署脚本会在服务健康后执行增量知识入库并打印已发布文档、Chunk 和 Embedding 统计。密集检索关闭时仍可发布词法语料；shadow/hybrid 模式下才调用 Embedding 服务。
 
 ## 千问配置
 
@@ -88,7 +106,7 @@ ECS 优先使用宿主机 k6，找不到时才使用 Docker 镜像。中国大�
 
 ## 后续工作
 
-1. 扩充正式黄金测试集，覆盖更多校区、年级、时效冲突和拒答样例。
+1. 持续扩充正式语料和黄金测试集，优先补齐报到材料、体检医保、住宿、交通与分校区差异。
 2. 补齐管理员知识上传、预览、审核、发布和回滚界面。
 3. 在 Dense 收益稳定后评估 qwen3-rerank，使用消融结果决定是否增加调用成本。
 4. 域名、HTTPS 和备案条件具备后，再开放长期公网演示地址。
