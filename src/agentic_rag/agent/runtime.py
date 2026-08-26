@@ -67,6 +67,9 @@ _OUT_OF_SCOPE_MARKERS = {
     "量子计算机",
     "股票",
     "天气",
+    "天气预报",
+    "下雨",
+    "气温",
     "诊断",
     "是什么病",
     "吃什么药",
@@ -268,11 +271,22 @@ class AgentRuntime:
 
     @staticmethod
     def _out_of_scope(state: AgentState) -> AgentState:
-        return {
-            "answer": (
+        query = state.get("normalized_query", "")
+        medical_request = any(
+            marker in query for marker in ("诊断", "是什么病", "吃什么药", "胸口痛")
+        )
+        if medical_request:
+            answer = (
                 "这个问题超出了南京大学新生事务助手的服务范围。涉及健康不适时，"
                 "请及时联系校医院、正规医疗机构或紧急服务，不要依赖问答助手进行诊断。"
-            ),
+            )
+        else:
+            answer = (
+                "这个问题超出了南京大学新生事务助手的服务范围。"
+                "我只能协助处理有可靠资料支持的新生校务与校园生活问题。"
+            )
+        return {
+            "answer": answer,
             "confidence": 1.0,
             "sources": [],
             "warnings": ["领域外请求，未执行知识检索。"],
