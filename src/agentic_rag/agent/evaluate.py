@@ -30,16 +30,29 @@ class EffectCase:
 
 CASES = (
     EffectCase("greeting", "你好", "direct", True, False),
-    EffectCase("fixture_notice", "这是真实的学校通知吗？", "fast_rag", True, True, True),
     EffectCase(
-        "fixture_privacy",
-        "为什么仓库里没有原始知识库？",
-        "research_rag",
+        "campus_card_loss",
+        "校园卡弄丢了怎么办？",
+        "fast_rag",
         True,
         True,
         True,
     ),
-    EffectCase("out_of_scope", "量子计算机如何制冷？", "fast_rag", False, False),
+    EffectCase(
+        "identity_password",
+        "统一身份认证密码忘了怎么重置？",
+        "fast_rag",
+        True,
+        True,
+        True,
+    ),
+    EffectCase(
+        "out_of_scope",
+        "量子计算机如何制冷？",
+        "out_of_scope",
+        False,
+        False,
+    ),
 )
 
 
@@ -59,7 +72,12 @@ def run_effect_evaluation(
         evidence_urls = {
             url.rstrip("/")
             for source in outcome.sources
-            for url in extract_urls(str(source.get("content", "")))
+            for value in (
+                str(source.get("content", "")),
+                str((source.get("metadata") or {}).get("source_url", "")),
+                " ".join((source.get("metadata") or {}).get("urls", [])),
+            )
+            for url in extract_urls(value)
         }
         unsupported_urls = [
             url
