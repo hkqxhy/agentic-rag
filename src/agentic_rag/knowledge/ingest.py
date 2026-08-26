@@ -55,16 +55,22 @@ async def ingest(
     )
     try:
         existing = await _existing_embeddings(database, settings)
-        pending = [
-            item
-            for item in prepared
-            if force or existing.get(item.chunk.id) != item.content_hash
-        ]
+        embedding_enabled = settings.dense_retrieval_mode != "off"
+        pending = (
+            [
+                item
+                for item in prepared
+                if force or existing.get(item.chunk.id) != item.content_hash
+            ]
+            if embedding_enabled
+            else []
+        )
         if dry_run:
             return {
                 "documents": len({item.document_id for item in prepared}),
                 "chunks": len(prepared),
                 "embeddings_to_generate": len(pending),
+                "embedding_enabled": embedding_enabled,
                 "publication": publication,
                 "dry_run": True,
             }
@@ -81,8 +87,11 @@ async def ingest(
             "chunks": len(prepared),
             "embeddings_generated": len(pending),
             "embeddings_reused": len(prepared) - len(pending),
-            "embedding_model": settings.embedding_model,
-            "embedding_version": settings.embedding_version,
+            "embedding_enabled": embedding_enabled,
+            "embedding_model": settings.embedding_model if embedding_enabled else "disabled",
+            "embedding_version": (
+                settings.embedding_version if embedding_enabled else "disabled"
+            ),
             "publication": publication,
             "dry_run": False,
         }
