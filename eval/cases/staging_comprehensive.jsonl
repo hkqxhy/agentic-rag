@@ -9,7 +9,7 @@
 {"id":"identity_password","category":"身份认证","priority":"P0","questions":["统一身份认证密码忘了怎么重置？"],"expected_behavior":"grounded_answer","coverage_required":true,"expected_keywords_any":["重置","密码"]}
 {"id":"identity_login","category":"身份认证","priority":"P0","questions":["统一身份认证一直提示登录失败怎么办？"],"expected_behavior":"grounded_answer","coverage_required":true,"expected_keywords_any":["密码","重置","联系"]}
 {"id":"identity_multiturn","category":"身份认证","priority":"P0","questions":["统一身份认证登录不上。","提示密码错误，应该在哪里重置？"],"expected_behavior":"grounded_answer","coverage_required":true,"expected_keywords_any":["重置","密码"]}
-{"id":"student_number","category":"身份认证","priority":"P1","questions":["新生怎么查询自己的学号？"],"expected_behavior":"clarify_or_abstain","coverage_required":false,"expected_keywords_any":["学号"]}
+{"id":"student_number","category":"身份认证","priority":"P1","questions":["新生怎么查询自己的学号？"],"expected_behavior":"grounded_boundary","coverage_required":false,"expected_keywords_any":["学号"]}
 {"id":"registration_materials","category":"报到注册","priority":"P0","questions":["新生报到需要准备哪些材料？"],"expected_behavior":"grounded_boundary","coverage_required":false,"expected_keywords_any":["材料","证件"]}
 {"id":"registration_process","category":"报到注册","priority":"P0","questions":["到校以后报到流程是什么？"],"expected_behavior":"grounded_boundary","coverage_required":false,"expected_keywords_any":["报到","流程"]}
 {"id":"dorm_checkin","category":"住宿生活","priority":"P0","questions":["宿舍入住要去哪里办理，需要带什么？"],"expected_behavior":"grounded_boundary","coverage_required":false,"expected_keywords_any":["宿舍","入住"]}
