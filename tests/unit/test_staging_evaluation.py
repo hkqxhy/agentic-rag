@@ -115,6 +115,35 @@ def test_evidence_backed_boundary_answer_passes() -> None:
     assert result["passed"] is True
 
 
+def test_out_of_scope_service_boundary_is_recognized() -> None:
+    result = evaluate_response(
+        make_case("out_of_scope"),
+        assistant(
+            "这个问题超出了南京大学新生事务助手的服务范围。",
+            grounded=False,
+            route="out_of_scope",
+            mode="out_of_scope",
+        ),
+        10.0,
+    )
+
+    assert result["passed"] is True
+
+
+def test_grounded_boundary_recognizes_explicit_missing_detail() -> None:
+    result = evaluate_response(
+        make_case("grounded_boundary"),
+        assistant(
+            "资料未明确说明学号查询路径 [S1]。",
+            grounded=True,
+            sources=[published_source()],
+        ),
+        10.0,
+    )
+
+    assert result["passed"] is True
+
+
 def test_missing_knowledge_is_counted_as_coverage_failure() -> None:
     result = evaluate_response(
         make_case("grounded_answer", coverage_required=True, keywords=("挂失",)),
